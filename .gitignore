@@ -62,7 +62,6 @@ supabase/logs/
 supabase/functions/.env
 
 # Chess engine binaries
-stockfish*
 *.exe
 
 # Docker

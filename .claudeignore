@@ -1,0 +1,123 @@
+# Node.js dependencies and build artifacts
+node_modules/
+**/node_modules/
+package-lock.json
+**/package-lock.json
+yarn.lock
+**/yarn.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+.next/
+out/
+
+# Environment and configuration files (may contain secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+**/.env*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Operating system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and temporary files
+*.log
+logs/
+**/logs/
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Test coverage and reports
+coverage/
+**/coverage/
+.nyc_output/
+*.lcov
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Docker files (usually not needed for code analysis)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Large data files and databases
+*.db
+*.sqlite
+*.sqlite3
+data/openings.parquet
+data/complete-openings.json
+**/*.parquet
+**/*.db
+
+# Compiled Python files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# Lock files and generated files
+*.lock
+flake.lock
+Cargo.lock
+
+# Minified JavaScript and CSS
+*.min.js
+*.min.css
+**/*.min.js
+**/*.min.css
+
+# Source maps
+*.map
+**/*.map
+
+# Binary files and images (unless specifically needed)
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.ico
+*.pdf
+*.zip
+*.tar.gz
+*.rar
+
+# Documentation that doesn't contain code
+*.md
+!CLAUDE.md
+README*
+CHANGELOG*
+LICENSE*

@@ -68,6 +68,9 @@ supabase/functions/.env
 .dockerignore
 docker-compose.override.yml
 
+# Claude Code AI assistant
+.claudeignore
+
 # Secrets and keys
 secrets/
 keys/

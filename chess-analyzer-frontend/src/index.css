@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+  body {
+    @apply bg-gray-50 text-gray-900 font-chess;
+  }
+}
+
+@layer components {
+  .chess-board-square {
+    @apply w-8 h-8 flex items-center justify-center text-xs font-mono;
+  }
+  
+  .chess-board-light {
+    @apply bg-chess-light;
+  }
+  
+  .chess-board-dark {
+    @apply bg-chess-dark;
+  }
+  
+  .blunder-critical {
+    @apply bg-red-100 border-red-400 text-red-800;
+  }
+  
+  .blunder-major {
+    @apply bg-orange-100 border-orange-400 text-orange-800;
+  }
+  
+  .blunder-minor {
+    @apply bg-yellow-100 border-yellow-400 text-yellow-800;
+  }
+  
+  .blunder-inaccuracy {
+    @apply bg-blue-100 border-blue-400 text-blue-800;
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "chess-analyzer-api",
+  "version": "1.0.0",
+  "description": "Chess game analysis API with natural language insights",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest --detectOpenHandles",
+    "test:watch": "jest --watch --detectOpenHandles",
+    "docker:build": "docker build -t chess-analyzer .",
+    "docker:run": "docker run -p 3000:3000 chess-analyzer"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.54.0",
+    "chess.js": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.1",
+    "express-validator": "^7.2.0",
+    "helmet": "^7.1.0",
+    "redis": "^4.7.0",
+    "stripe": "^18.4.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "chess",
+    "analysis",
+    "stockfish",
+    "api"
+  ],
+  "author": "Ryan Keiper",
+  "license": "MIT"
+}

@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+chess-analyzer-frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Variables (CRITICAL - NEVER COMMIT)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+chess-analyzer-frontend/.env
+chess-analyzer-frontend/.env.local
+
+# Build outputs
+dist/
+build/
+chess-analyzer-frontend/dist/
+chess-analyzer-frontend/build/
+.next/
+out/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output
+
+# Database files
+*.sqlite
+*.db
+data
+
+# Temporary folders
+tmp/
+temp/
+
+# Supabase local
+supabase/.temp/
+supabase/logs/
+supabase/functions/.env
+
+# Chess engine binaries
+stockfish*
+*.exe
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Secrets and keys
+secrets/
+keys/
+*.pem
+*.key

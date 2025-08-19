@@ -1,34 +1,42 @@
 const { Chess } = require('chess.js');
 const { supabase } = require('./supabase');
-const https = require('https');
 
 /**
- * Hybrid ECO Classifier - Database for classification, Lichess for book depth verification
+ * WikiBooks-based ECO Classifier - Uses WikiBooks positions table for comprehensive opening theory
  */
 class ECOClassifier {
   constructor() {
     this.positionCache = new Map();
-    this.bookDepthCache = new Map(); // Cache Lichess book depth checks
+    this.wikibooksCache = new Map(); // Cache WikiBooks position lookups
+    this.chessOpeningsCache = new Map(); // Cache chess_openings fallback lookups
     this.isLoaded = false;
-    this.lastApiCall = 0;
-    this.API_DELAY_MS = 1000; // 1 second between Lichess calls
   }
 
   async loadDatabase() {
     if (this.isLoaded) return;
     
     try {
-      console.log('Initializing hybrid ECO classifier...');
+      console.log('Initializing WikiBooks-based ECO classifier...');
       
-      const { count, error } = await supabase
+      // Check WikiBooks positions table
+      const { count: wikibooksCount, error: wikibooksError } = await supabase
+        .from('wikibooks_positions')
+        .select('*', { count: 'exact', head: true });
+      
+      if (wikibooksError) {
+        throw new Error(`WikiBooks database connection failed: ${wikibooksError.message}`);
+      }
+      
+      // Check chess_openings table as fallback
+      const { count: openingsCount, error: openingsError } = await supabase
         .from('chess_openings')
         .select('*', { count: 'exact', head: true });
       
-      if (error) {
-        throw new Error(`Database connection failed: ${error.message}`);
+      if (openingsError) {
+        throw new Error(`Chess openings database connection failed: ${openingsError.message}`);
       }
       
-      console.log(`✅ Hybrid ECO classifier ready with ${count} openings + Lichess verification`);
+      console.log(`✅ WikiBooks ECO classifier ready with ${wikibooksCount} WikiBooks positions + ${openingsCount} chess openings fallback`);
       this.isLoaded = true;
       
     } catch (error) {
@@ -38,7 +46,7 @@ class ECOClassifier {
   }
 
   /**
-   * Main classification function with hybrid approach
+   * Main classification function using WikiBooks positions table
    */
   async classify(moves) {
     if (!this.isLoaded) {
@@ -60,35 +68,163 @@ class ECOClassifier {
         return this.getDefaultClassification();
       }
 
-      // Step 1: Get opening classification from our database (fast)
-      const databaseResult = await this.classifyFromDatabase(moveArray);
+      // Get hybrid classification from WikiBooks (depth) + chess_openings (names)
+      const wikibooksResult = await this.classifyFromWikiBooks(moveArray);
       
-      if (!databaseResult || !databaseResult.eco) {
-        return this.getDefaultClassification();
+      if (wikibooksResult && (wikibooksResult.opening_name || wikibooksResult.name)) {
+        console.log(`Hybrid WikiBooks found: ${wikibooksResult.name} (${wikibooksResult.eco || 'no ECO'}) - book until move ${wikibooksResult.lastBookMove}`);
+        return wikibooksResult;
       }
 
-      // Step 2: Verify and extend book depth with Lichess (accurate)
-      console.log(`Database found: ${databaseResult.name} (book until move ${databaseResult.lastBookMove})`);
-      const extendedBookDepth = await this.verifyBookDepthWithLichess(moveArray, databaseResult.lastBookMove);
+      // Fallback to chess_openings table if WikiBooks doesn't have the position
+      console.log('WikiBooks classification failed, trying chess_openings fallback...');
+      const fallbackResult = await this.classifyFromChessOpenings(moveArray);
       
-      // Combine database classification with Lichess book depth
-      return {
-        ...databaseResult,
-        lastBookMove: extendedBookDepth.actualLastMove,
-        bookDepthSource: extendedBookDepth.source,
-        bookExtended: extendedBookDepth.actualLastMove > databaseResult.lastBookMove
-      };
+      if (fallbackResult && fallbackResult.eco) {
+        console.log(`Chess openings fallback found: ${fallbackResult.name} (book until move ${fallbackResult.lastBookMove})`);
+        return fallbackResult;
+      }
+
+      return this.getDefaultClassification();
 
     } catch (error) {
-      console.error('Error in hybrid classification:', error.message);
+      console.error('Error in WikiBooks classification:', error.message);
       return this.getDefaultClassification();
     }
   }
 
   /**
-   * Step 1: Get opening classification from database
+   * Hybrid classification: WikiBooks depth + chess_openings names
+   * Gets the comprehensive book depth from WikiBooks while using the superior
+   * opening names from chess_openings table for better descriptiveness
    */
-  async classifyFromDatabase(moveArray) {
+  async classifyFromWikiBooks(moveArray) {
+    let bestWikiBooksOpening = null;
+    let bestChessOpeningName = null;
+    let bestChessOpeningEco = null;
+    let bestChessOpeningData = null;
+    let lastBookMove = 0;
+    const game = new Chess();
+    
+    console.log('Starting hybrid classification (WikiBooks depth + chess_openings names)...');
+    
+    // Check positions up to move 30 (WikiBooks has deeper theory)
+    for (let i = 0; i < Math.min(moveArray.length, 30); i++) {
+      try {
+        const move = moveArray[i];
+        game.move(move);
+        
+        const fen = game.fen();
+        const epd = this.fenToEpd(fen);
+        const moveNumber = Math.ceil((i + 1) / 2);
+        
+        // Parallel lookups for both tables
+        const [wikibooksResult, chessOpeningsResult] = await Promise.all([
+          this.queryWikiBooksPosition(epd),
+          this.queryChessOpeningsPosition(epd)
+        ]);
+        
+        // WikiBooks drives the book depth (primary source for "in book" determination)
+        if (wikibooksResult && wikibooksResult.opening_name) {
+          bestWikiBooksOpening = wikibooksResult;
+          lastBookMove = moveNumber;
+          console.log(`Move ${moveNumber}: WikiBooks found "${wikibooksResult.opening_name}"`);
+        }
+        
+        // chess_openings provides superior naming (secondary source for descriptive names)
+        if (chessOpeningsResult && chessOpeningsResult.eco) {
+          bestChessOpeningName = chessOpeningsResult.name;
+          bestChessOpeningEco = chessOpeningsResult.eco;
+          bestChessOpeningData = chessOpeningsResult;
+          console.log(`Move ${moveNumber}: chess_openings found "${chessOpeningsResult.name}" (${chessOpeningsResult.eco})`);
+        }
+        
+      } catch (moveError) {
+        console.warn(`Error processing move ${i + 1}:`, moveError.message);
+        break;
+      }
+    }
+
+    if (!bestWikiBooksOpening) return null;
+
+    // Hybrid result: WikiBooks depth + chess_openings name quality
+    const hybridResult = {
+      eco: bestChessOpeningEco, // From chess_openings (better ECO classification)
+      name: bestChessOpeningName || bestWikiBooksOpening.opening_name || bestWikiBooksOpening.page_title, // Prefer chess_openings name
+      pgn: bestChessOpeningData?.pgn || bestWikiBooksOpening.move_sequence || '',
+      uci: bestChessOpeningData?.uci || '',
+      lastBookMove: lastBookMove, // From WikiBooks (deeper/more accurate book depth)
+      totalMoves: moveArray.length,
+      source: 'wikibooks_hybrid', // Indicate this is a hybrid result
+      
+      // Preserve WikiBooks educational content
+      opening_name: bestWikiBooksOpening.opening_name,
+      theory_text: bestWikiBooksOpening.theory_text,
+      
+      // Indicate data sources used
+      nameSource: bestChessOpeningName ? 'chess_openings' : 'wikibooks',
+      depthSource: 'wikibooks'
+    };
+
+    console.log(`Hybrid result: "${hybridResult.name}" (${hybridResult.eco || 'no ECO'}) - book until move ${lastBookMove}`);
+    
+    return hybridResult;
+  }
+
+  /**
+   * Query WikiBooks positions table for a specific position
+   */
+  async queryWikiBooksPosition(epd) {
+    // Check cache first
+    if (this.wikibooksCache.has(epd)) {
+      return this.wikibooksCache.get(epd);
+    }
+    
+    try {
+      const { data: position, error } = await supabase
+        .from('wikibooks_positions')
+        .select('*')
+        .eq('epd', epd)
+        .single();
+      
+      const result = (position && !error && position.opening_name) ? position : null;
+      this.wikibooksCache.set(epd, result);
+      return result;
+    } catch (error) {
+      this.wikibooksCache.set(epd, null);
+      return null;
+    }
+  }
+
+  /**
+   * Query chess_openings table for a specific position
+   */
+  async queryChessOpeningsPosition(epd) {
+    // Check cache first
+    if (this.chessOpeningsCache.has(epd)) {
+      return this.chessOpeningsCache.get(epd);
+    }
+    
+    try {
+      const { data: opening, error } = await supabase
+        .from('chess_openings')
+        .select('*')
+        .eq('epd', epd)
+        .single();
+      
+      const result = (opening && !error && opening.eco) ? opening : null;
+      this.chessOpeningsCache.set(epd, result);
+      return result;
+    } catch (error) {
+      this.chessOpeningsCache.set(epd, null);
+      return null;
+    }
+  }
+
+  /**
+   * Fallback: Get opening classification from chess_openings table
+   */
+  async classifyFromChessOpenings(moveArray) {
     let bestOpening = null;
     let lastBookMove = 0;
     const game = new Chess();
@@ -103,8 +239,8 @@ class ECOClassifier {
         const epd = this.fenToEpd(fen);
         
         // Check cache first
-        if (this.positionCache.has(epd)) {
-          const cachedOpening = this.positionCache.get(epd);
+        if (this.chessOpeningsCache.has(epd)) {
+          const cachedOpening = this.chessOpeningsCache.get(epd);
           if (cachedOpening) {
             bestOpening = cachedOpening;
             lastBookMove = Math.ceil((i + 1) / 2);
@@ -112,19 +248,19 @@ class ECOClassifier {
           continue;
         }
         
-        // Query database
+        // Query chess_openings table
         const { data: opening, error } = await supabase
           .from('chess_openings')
           .select('*')
           .eq('epd', epd)
           .single();
         
-        if (opening && !error) {
+        if (opening && !error && opening.eco) {
           bestOpening = opening;
           lastBookMove = Math.ceil((i + 1) / 2);
-          this.positionCache.set(epd, opening);
+          this.chessOpeningsCache.set(epd, opening);
         } else {
-          this.positionCache.set(epd, null);
+          this.chessOpeningsCache.set(epd, null);
         }
         
       } catch (moveError) {
@@ -142,131 +278,11 @@ class ECOClassifier {
       uci: bestOpening.uci,
       lastBookMove: lastBookMove,
       totalMoves: moveArray.length,
-      source: 'database'
+      source: 'chess_openings_fallback'
     };
   }
 
-  /**
-   * Step 2: Verify and extend book depth using Lichess Masters database
-   */
-  async verifyBookDepthWithLichess(moveArray, databaseLastMove) {
-    try {
-      console.log(`Verifying book depth beyond move ${databaseLastMove} with Lichess...`);
-      
-      const game = new Chess();
-      let actualLastMove = databaseLastMove;
-      let lichessCallsUsed = 0;
-      const maxLichessCalls = 5; // Limit to prevent too many API calls
-      
-      // Start checking from our database's last book move
-      for (let i = 0; i < moveArray.length && i < 30; i++) { // Check up to move 30 max
-        const move = moveArray[i];
-        game.move(move);
-        
-        const moveNumber = Math.ceil((i + 1) / 2);
-        
-        // Only check Lichess for moves beyond our database's book knowledge
-        if (moveNumber > databaseLastMove && lichessCallsUsed < maxLichessCalls) {
-          const fen = game.fen();
-          const lichessResult = await this.checkLichessBook(fen);
-          lichessCallsUsed++;
-          
-          if (lichessResult.inBook && lichessResult.popularity > 100) { // Minimum popularity threshold
-            actualLastMove = moveNumber;
-            console.log(`Lichess confirms move ${moveNumber} still in book (${lichessResult.popularity} games)`);
-          } else {
-            console.log(`Lichess confirms book ends at move ${moveNumber - 1}`);
-            break;
-          }
-        }
-      }
-      
-      return {
-        actualLastMove: actualLastMove,
-        source: actualLastMove > databaseLastMove ? 'database + lichess' : 'database',
-        lichessCallsUsed: lichessCallsUsed
-      };
-      
-    } catch (error) {
-      console.warn('Error verifying book depth with Lichess:', error.message);
-      return {
-        actualLastMove: databaseLastMove,
-        source: 'database (lichess failed)',
-        lichessCallsUsed: 0
-      };
-    }
-  }
 
-  /**
-   * Check if a position is still in Lichess Masters book
-   */
-  async checkLichessBook(fen) {
-    // Check cache first
-    const epd = this.fenToEpd(fen);
-    if (this.bookDepthCache.has(epd)) {
-      return this.bookDepthCache.get(epd);
-    }
-
-    // Rate limiting
-    const now = Date.now();
-    const timeSinceLastCall = now - this.lastApiCall;
-    
-    if (timeSinceLastCall < this.API_DELAY_MS) {
-      const delay = this.API_DELAY_MS - timeSinceLastCall;
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    
-    this.lastApiCall = Date.now();
-
-    try {
-      const url = `https://explorer.lichess.ovh/master?fen=${encodeURIComponent(fen)}`;
-      
-      const data = await new Promise((resolve, reject) => {
-        const request = https.get(url, (response) => {
-          let data = '';
-          
-          response.on('data', (chunk) => {
-            data += chunk;
-          });
-          
-          response.on('end', () => {
-            try {
-              resolve(JSON.parse(data));
-            } catch (parseError) {
-              reject(new Error(`Failed to parse JSON: ${parseError.message}`));
-            }
-          });
-        });
-        
-        request.on('error', (error) => {
-          reject(error);
-        });
-        
-        request.setTimeout(5000, () => {
-          request.destroy();
-          reject(new Error('Request timeout'));
-        });
-      });
-      
-      const result = {
-        inBook: data.moves && data.moves.length > 0,
-        popularity: data.moves ? data.moves.reduce((sum, move) => sum + move.white + move.draws + move.black, 0) : 0,
-        topMove: data.moves && data.moves.length > 0 ? data.moves[0].san : null
-      };
-
-      // Cache the result
-      this.bookDepthCache.set(epd, result);
-      
-      return result;
-      
-    } catch (error) {
-      console.warn(`Lichess book check failed: ${error.message}`);
-      
-      const fallback = { inBook: false, popularity: 0, topMove: null };
-      this.bookDepthCache.set(epd, fallback);
-      return fallback;
-    }
-  }
 
   /**
    * Convert FEN to EPD
@@ -348,7 +364,8 @@ class ECOClassifier {
    */
   clearCache() {
     this.positionCache.clear();
-    this.bookDepthCache.clear();
+    this.wikibooksCache.clear();
+    this.chessOpeningsCache.clear();
     console.log('All caches cleared');
   }
 }

@@ -142,3 +142,4 @@ VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 - **Security**: Helmet.js, CORS, request validation
 - **Performance**: Redis caching, optimized analysis pipeline
 - Always run the test suite before making a commit
+- Use test driven development in all new features

@@ -5,28 +5,30 @@ const errorHandler = (err, req, res, next) => {
   let status = 500;
   let message = 'Internal server error';
 
-  // Validation errors
-  if (err.name === 'ValidationError') {
-    status = 400;
-    message = 'Validation failed';
+  // Handle null/undefined errors
+  if (!err) {
+    return res.status(status).json({ error: message });
   }
 
-  // Chess.js errors
-  if (err.message && err.message.includes('Invalid PGN')) {
-    status = 400;
-    message = 'Invalid chess game format';
-  }
-
-  // Stockfish errors
-  if (err.message && err.message.includes('Stockfish')) {
-    status = 503;
-    message = 'Chess engine temporarily unavailable';
-  }
-
-  // Rate limiting
+  // Rate limiting (check first as it uses status property)
   if (err.status === 429) {
     status = 429;
     message = 'Too many requests';
+  }
+  // Validation errors
+  else if (err.name === 'ValidationError') {
+    status = 400;
+    message = 'Validation failed';
+  }
+  // Chess.js errors
+  else if (err.message && err.message.includes('Invalid PGN')) {
+    status = 400;
+    message = 'Invalid chess game format';
+  }
+  // Stockfish errors
+  else if (err.message && err.message.includes('Stockfish')) {
+    status = 503;
+    message = 'Chess engine temporarily unavailable';
   }
 
   res.status(status).json({

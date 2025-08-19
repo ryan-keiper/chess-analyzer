@@ -151,12 +151,16 @@ describe('Supabase Service', () => {
         process.env.SUPABASE_URL = url;
         process.env.SUPABASE_SERVICE_ROLE_KEY = 'test_key';
 
+        // Get fresh reference to the mock after resetModules
+        const { createClient } = require('@supabase/supabase-js');
+        const freshMockCreateClient = createClient;
+        
         const mockClient = { from: jest.fn() };
-        mockCreateClient.mockReturnValue(mockClient);
+        freshMockCreateClient.mockReturnValue(mockClient);
 
         const { supabase } = require('../services/supabase');
 
-        expect(mockCreateClient).toHaveBeenCalledWith(url, 'test_key');
+        expect(freshMockCreateClient).toHaveBeenCalledWith(url, 'test_key');
       });
     });
 
@@ -172,12 +176,16 @@ describe('Supabase Service', () => {
         process.env.SUPABASE_URL = 'https://test.supabase.co';
         process.env.SUPABASE_SERVICE_ROLE_KEY = key;
 
+        // Get fresh reference to the mock after resetModules
+        const { createClient } = require('@supabase/supabase-js');
+        const freshMockCreateClient = createClient;
+        
         const mockClient = { from: jest.fn() };
-        mockCreateClient.mockReturnValue(mockClient);
+        freshMockCreateClient.mockReturnValue(mockClient);
 
         const { supabase } = require('../services/supabase');
 
-        expect(mockCreateClient).toHaveBeenCalledWith('https://test.supabase.co', key);
+        expect(freshMockCreateClient).toHaveBeenCalledWith('https://test.supabase.co', key);
       });
     });
   });
@@ -221,7 +229,8 @@ describe('Supabase Service', () => {
       process.env.SUPABASE_SERVICE_ROLE_KEY = 'test_service_key';
 
       const mockFrom = jest.fn();
-      const mockAuth = jest.fn();
+      const mockGetUser = jest.fn();
+      const mockAuth = { getUser: mockGetUser };
       const mockRpc = jest.fn();
       
       const mockClient = { 
@@ -236,7 +245,8 @@ describe('Supabase Service', () => {
 
       // Test that the client has expected methods
       expect(typeof supabase.from).toBe('function');
-      expect(typeof supabase.auth).toBe('function');
+      expect(typeof supabase.auth).toBe('object');
+      expect(typeof supabase.auth.getUser).toBe('function');
       expect(typeof supabase.rpc).toBe('function');
 
       // Test that methods can be called
@@ -245,7 +255,7 @@ describe('Supabase Service', () => {
       supabase.rpc('test_function');
 
       expect(mockFrom).toHaveBeenCalledWith('test_table');
-      expect(mockAuth.getUser).toHaveBeenCalled();
+      expect(mockGetUser).toHaveBeenCalled();
       expect(mockRpc).toHaveBeenCalledWith('test_function');
     });
 
@@ -392,19 +402,24 @@ describe('Supabase Service', () => {
       const mockClient1 = { from: jest.fn() };
       const mockClient2 = { from: jest.fn() };
       
-      mockCreateClient
-        .mockReturnValueOnce(mockClient1)
-        .mockReturnValueOnce(mockClient2);
+      mockCreateClient.mockReturnValue(mockClient1);
 
       const { supabase: supabase1 } = require('../services/supabase');
       
       // Clear module cache and require again
       jest.resetModules();
+      
+      // Get fresh reference to the mock after resetModules
+      const { createClient } = require('@supabase/supabase-js');
+      const freshMockCreateClient = createClient;
+      freshMockCreateClient.mockReturnValue(mockClient2);
+      
       const { supabase: supabase2 } = require('../services/supabase');
 
       expect(supabase1).toBe(mockClient1);
       expect(supabase2).toBe(mockClient2);
-      expect(mockCreateClient).toHaveBeenCalledTimes(2);
+      expect(mockCreateClient).toHaveBeenCalledTimes(1);
+      expect(freshMockCreateClient).toHaveBeenCalledTimes(1);
     });
   });
 

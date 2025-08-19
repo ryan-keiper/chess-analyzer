@@ -8,6 +8,8 @@ class StockfishEngine {
     this.currentFen = null;
     this.readyResolve = null;
     this.analysisCounter = 0; // Add counter to track analysis requests
+    this.timeouts = new Set(); // Track active timeouts for cleanup
+    this.isTestEnvironment = process.env.NODE_ENV === 'test'; // Detect test environment
   }
 
   async initialize() {
@@ -124,6 +126,7 @@ class StockfishEngine {
       
       if (analysis.depth >= requiredDepth) {
         console.log(`✅ Analysis complete for depth ${analysis.depth}`);
+        this.clearAnalysisTimeout(fen);
         resolve(analysis);
         this.pendingAnalysis.delete(fen);
       }
@@ -149,6 +152,7 @@ class StockfishEngine {
       };
       
       console.log(`🏁 Resolving with bestmove: ${bestMove}`);
+      this.clearAnalysisTimeout(fen);
       resolve(analysis);
       this.pendingAnalysis.delete(fen);
     }
@@ -198,24 +202,17 @@ class StockfishEngine {
         this.pendingAnalysis.delete(fen);
       }
       
-      this.currentFen = fen;
-      this.pendingAnalysis.set(fen, { resolve, requiredDepth: depth, analysisId });
-      
-      // Send commands to engine
-      this.sendCommand(`position fen ${fen}`)
-        .then(() => this.sendCommand(`go depth ${depth}`))
-        .catch(error => {
-          console.error(`❌ Error sending commands for analysis #${analysisId}:`, error);
-          this.pendingAnalysis.delete(fen);
-          reject(error);
-        });
-      
-      // Timeout fallback - more generous timeout based on depth
-      // Deeper analysis needs more time: depth 12 = ~8-15 seconds, depth 8 = ~3-5 seconds
+      // Setup timeout first
       const timeoutMs = Math.max(timeMs, depth * 1000); // At least depth * 1000ms
       console.log(`⏰ Setting timeout for ${timeoutMs}ms for analysis #${analysisId} (depth ${depth})`);
       
-      setTimeout(() => {
+      let timeoutId;
+      const timeoutCallback = () => {
+        // Remove from tracking set if it exists
+        if (timeoutId && this.timeouts.has(timeoutId)) {
+          this.timeouts.delete(timeoutId);
+        }
+        
         if (this.pendingAnalysis.has(fen)) {
           console.error(`⏰ Analysis #${analysisId} timed out after ${timeoutMs}ms`);
           console.error(`🐟 Engine state: ready=${this.isReady}, pending=${this.pendingAnalysis.size}`);
@@ -227,12 +224,63 @@ class StockfishEngine {
           
           reject(new Error(`Analysis timeout after ${timeoutMs}ms for depth ${depth}`));
         }
-      }, timeoutMs);
+      };
+      
+      timeoutId = setTimeout(timeoutCallback, timeoutMs);
+      
+      // Track timeout for cleanup (handle case where setTimeout returns different types in tests)
+      if (timeoutId && (typeof timeoutId === 'object' || typeof timeoutId === 'number')) {
+        this.timeouts.add(timeoutId);
+      }
+      
+      this.currentFen = fen;
+      this.pendingAnalysis.set(fen, { resolve, requiredDepth: depth, analysisId, timeoutId });
+      
+      // Send commands to engine
+      this.sendCommand(`position fen ${fen}`)
+        .then(() => this.sendCommand(`go depth ${depth}`))
+        .catch(error => {
+          console.error(`❌ Error sending commands for analysis #${analysisId}:`, error);
+          this.clearAnalysisTimeout(fen);
+          this.pendingAnalysis.delete(fen);
+          reject(error);
+        });
     });
+  }
+
+  clearAnalysisTimeout(fen) {
+    const analysis = this.pendingAnalysis.get(fen);
+    if (analysis && analysis.timeoutId) {
+      clearTimeout(analysis.timeoutId);
+      if (this.timeouts.has(analysis.timeoutId)) {
+        this.timeouts.delete(analysis.timeoutId);
+      }
+    }
   }
 
   cleanup() {
     console.log('🧹 Cleaning up Stockfish engine...');
+    
+    // Clear all active timeouts
+    for (const timeoutId of this.timeouts) {
+      try {
+        clearTimeout(timeoutId);
+      } catch (error) {
+        // Ignore errors when clearing timeouts (may happen in test environments)
+      }
+    }
+    this.timeouts.clear();
+    
+    // Clear timeouts from pending analysis
+    for (const [fen, analysis] of this.pendingAnalysis) {
+      if (analysis.timeoutId) {
+        try {
+          clearTimeout(analysis.timeoutId);
+        } catch (error) {
+          // Ignore errors
+        }
+      }
+    }
     
     if (this.engine) {
       this.engine.kill();

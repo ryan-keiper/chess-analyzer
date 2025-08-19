@@ -315,7 +315,7 @@ describe('Stripe Service', () => {
       // Mock database error for user_profiles update
       mockSupabase.from.mockReturnValue({
         update: jest.fn(() => ({
-          eq: jest.fn().mockResolvedValue({ data: null, error: { message: 'Database error' } })
+          eq: jest.fn().mockResolvedValue({ data: null, error: new Error('Database error') })
         }))
       });
 

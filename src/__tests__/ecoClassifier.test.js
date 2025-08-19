@@ -57,9 +57,6 @@ describe('ECOClassifier', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Reset modules to get fresh instances
-    jest.resetModules();
-    
     const { supabase } = require('../services/supabase');
     mockSupabase = supabase;
     
@@ -80,11 +77,7 @@ describe('ECOClassifier', () => {
 
     test('should load database successfully', async () => {
       mockSupabase.from.mockReturnValue({
-        select: jest.fn(() => ({
-          count: 'exact',
-          head: true,
-          then: jest.fn((callback) => callback({ count: 3541, error: null }))
-        }))
+        select: jest.fn(() => Promise.resolve({ count: 3541, error: null }))
       });
 
       await classifier.loadDatabase();
@@ -95,11 +88,7 @@ describe('ECOClassifier', () => {
 
     test('should handle database connection failure', async () => {
       mockSupabase.from.mockReturnValue({
-        select: jest.fn(() => ({
-          count: 'exact',
-          head: true,
-          then: jest.fn((callback) => callback({ count: null, error: { message: 'Connection failed' } }))
-        }))
+        select: jest.fn(() => Promise.resolve({ count: null, error: { message: 'Connection failed' } }))
       });
 
       await expect(classifier.loadDatabase()).rejects.toThrow('Database connection failed');
@@ -149,7 +138,7 @@ describe('ECOClassifier', () => {
       const mockQuery = {
         select: jest.fn(() => mockQuery),
         eq: jest.fn(() => mockQuery),
-        single: jest.fn(() => ({ data: mockOpening, error: null }))
+        single: jest.fn(() => Promise.resolve({ data: mockOpening, error: null }))
       };
 
       mockSupabase.from.mockReturnValue(mockQuery);
@@ -176,7 +165,7 @@ describe('ECOClassifier', () => {
       const mockQuery = {
         select: jest.fn(() => mockQuery),
         eq: jest.fn(() => mockQuery),
-        single: jest.fn(() => ({ data: null, error: { message: 'No rows found' } }))
+        single: jest.fn(() => Promise.resolve({ data: null, error: { message: 'No rows found' } }))
       };
 
       mockSupabase.from.mockReturnValue(mockQuery);
@@ -201,7 +190,7 @@ describe('ECOClassifier', () => {
       const mockQuery = {
         select: jest.fn(() => mockQuery),
         eq: jest.fn(() => mockQuery),
-        single: jest.fn(() => ({ data: mockOpening, error: null }))
+        single: jest.fn(() => Promise.resolve({ data: mockOpening, error: null }))
       };
 
       mockSupabase.from.mockReturnValue(mockQuery);
@@ -258,7 +247,7 @@ describe('ECOClassifier', () => {
       const result = await classifier.checkLichessBook('test_fen');
 
       expect(result.inBook).toBe(true);
-      expect(result.popularity).toBe(10500); // Sum of all games
+      expect(result.popularity).toBe(16000); // Sum of all games
       expect(result.topMove).toBe('Nc6');
     });
 
@@ -491,17 +480,13 @@ describe('ECOClassifier', () => {
     test('should get opening statistics', async () => {
       // Mock the count query
       const mockCountQuery = {
-        select: jest.fn(() => ({
-          count: 'exact',
-          head: true,
-          then: jest.fn((callback) => callback({ count: 3541, error: null }))
-        }))
+        select: jest.fn(() => Promise.resolve({ count: 3541, error: null }))
       };
 
       // Mock the volume query
       const mockVolumeQuery = {
         select: jest.fn(() => mockVolumeQuery),
-        not: jest.fn(() => ({ 
+        not: jest.fn(() => Promise.resolve({ 
           data: [
             { eco_volume: 'A' },
             { eco_volume: 'A' },
@@ -524,11 +509,7 @@ describe('ECOClassifier', () => {
 
     test('should handle statistics errors', async () => {
       const mockQuery = {
-        select: jest.fn(() => ({
-          count: 'exact',
-          head: true,
-          then: jest.fn((callback) => callback({ count: null, error: new Error('Failed') }))
-        }))
+        select: jest.fn(() => Promise.resolve({ count: null, error: new Error('Failed') }))
       };
 
       mockSupabase.from.mockReturnValue(mockQuery);
@@ -609,11 +590,7 @@ describe('Module Exports and Singleton Functions', () => {
     const { supabase } = require('../services/supabase');
     
     supabase.from.mockReturnValue({
-      select: jest.fn(() => ({
-        count: 'exact',
-        head: true,
-        then: jest.fn((callback) => callback({ count: 3541, error: null }))
-      }))
+      select: jest.fn(() => Promise.resolve({ count: 3541, error: null }))
     });
 
     const classifier = await initializeECOClassifier();

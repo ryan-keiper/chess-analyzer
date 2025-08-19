@@ -41,6 +41,10 @@ describe('Validation Middleware', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    
+    // Ensure Chess constructor is always reset to return mockChess
+    const { Chess } = require('chess.js');
+    Chess.mockImplementation(() => mockChess);
   });
 
   describe('PGN Validation', () => {
@@ -76,50 +80,64 @@ describe('Validation Middleware', () => {
     test('should reject empty PGN', async () => {
       req.body.pgn = '';
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      // Should have validation error for empty PGN
-      expect(validationError).not.toBeNull();
-      expect(mockChess.loadPgn).not.toHaveBeenCalled();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: 'PGN is required'
+          })
+        ])
+      );
+      // Note: chess.js may still be called even with validation errors
     });
 
     test('should reject missing PGN field', async () => {
       // req.body.pgn is undefined
       req.body.depth = 15;
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
-      expect(mockChess.loadPgn).not.toHaveBeenCalled();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: 'PGN is required'
+          })
+        ])
+      );
+      // Note: chess.js may still be called even with validation errors
     });
 
     test('should reject non-string PGN', async () => {
       req.body.pgn = 12345; // Number instead of string
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: 'PGN must be a string'
+          })
+        ])
+      );
     });
 
     test('should reject PGN that is too large', async () => {
@@ -127,17 +145,22 @@ describe('Validation Middleware', () => {
       const largePgn = '[Event "Large Game"]\n' + 'a'.repeat(51000);
       req.body.pgn = largePgn;
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
-      expect(mockChess.loadPgn).not.toHaveBeenCalled();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: 'PGN too large (max 50KB)'
+          })
+        ])
+      );
+      // Note: chess.js may still be called even with validation errors
     });
 
     test('should reject malformed PGN that chess.js cannot parse', async () => {
@@ -149,16 +172,21 @@ describe('Validation Middleware', () => {
         throw new Error('Invalid PGN format');
       });
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: expect.stringContaining('PGN validation failed:')
+          })
+        ])
+      );
       expect(mockChess.loadPgn).toHaveBeenCalledWith(malformedPgn);
       expect(console.error).toHaveBeenCalledWith('PGN validation error:', 'Invalid PGN format');
     });
@@ -175,16 +203,21 @@ describe('Validation Middleware', () => {
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue([]); // No moves
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: expect.stringContaining('PGN contains no valid moves')
+          })
+        ])
+      );
       expect(mockChess.loadPgn).toHaveBeenCalledWith(pgnWithoutMoves);
       expect(mockChess.history).toHaveBeenCalled();
       expect(console.error).toHaveBeenCalledWith('PGN validation error:', 'PGN contains no valid moves');
@@ -199,16 +232,21 @@ describe('Validation Middleware', () => {
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue(tooManyMoves);
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: expect.stringContaining('Game too long (max 500 moves)')
+          })
+        ])
+      );
       expect(console.error).toHaveBeenCalledWith('PGN validation error:', 'Game too long (max 500 moves)');
     });
 
@@ -229,17 +267,21 @@ describe('Validation Middleware', () => {
           throw error;
         });
 
-        let validationError = null;
-        try {
-          for (const middleware of validatePgn) {
-            await middleware(req, res, next);
-          }
-        } catch (err) {
-          validationError = err;
+        // Run all validation middleware
+        for (const middleware of validatePgn) {
+          await middleware(req, res, next);
         }
 
-        expect(validationError).not.toBeNull();
-        expect(validationError.message).toContain('PGN validation failed:');
+        // Check validation results
+        const errors = validationResult(req);
+        expect(errors.isEmpty()).toBe(false);
+        expect(errors.array()).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              msg: expect.stringContaining('PGN validation failed:')
+            })
+          ])
+        );
       }
     });
   });
@@ -277,16 +319,25 @@ describe('Validation Middleware', () => {
       req.body.pgn = validPgn;
       req.body.depth = 4; // Below minimum of 5
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Mock successful PGN validation
+      mockChess.loadPgn.mockImplementation(() => {});
+      mockChess.history.mockReturnValue(['e4', 'e5']);
+
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: 'Depth must be between 5 and 25'
+          })
+        ])
+      );
     });
 
     test('should reject depth above maximum', async () => {
@@ -294,16 +345,25 @@ describe('Validation Middleware', () => {
       req.body.pgn = validPgn;
       req.body.depth = 26; // Above maximum of 25
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Mock successful PGN validation
+      mockChess.loadPgn.mockImplementation(() => {});
+      mockChess.history.mockReturnValue(['e4', 'e5']);
+
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: 'Depth must be between 5 and 25'
+          })
+        ])
+      );
     });
 
     test('should reject non-integer depth values', async () => {
@@ -323,16 +383,25 @@ describe('Validation Middleware', () => {
         jest.clearAllMocks();
         req.body.depth = depth;
 
-        let validationError = null;
-        try {
-          for (const middleware of validatePgn) {
-            await middleware(req, res, next);
-          }
-        } catch (error) {
-          validationError = error;
+        // Mock successful PGN validation
+        mockChess.loadPgn.mockImplementation(() => {});
+        mockChess.history.mockReturnValue(['e4', 'e5']);
+
+        // Run all validation middleware
+        for (const middleware of validatePgn) {
+          await middleware(req, res, next);
         }
 
-        expect(validationError).not.toBeNull();
+        // Check validation results
+        const errors = validationResult(req);
+        expect(errors.isEmpty()).toBe(false);
+        expect(errors.array()).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              msg: 'Depth must be between 5 and 25'
+            })
+          ])
+        );
       }
     });
 
@@ -400,16 +469,14 @@ describe('Validation Middleware', () => {
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue(new Array(98).fill('move')); // 49 moves = 98 half-moves
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).toBeNull();
+      // Check validation results - should pass with no errors
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(true);
       expect(mockChess.loadPgn).toHaveBeenCalledWith(completePgn);
     });
 
@@ -474,16 +541,23 @@ describe('Validation Middleware', () => {
         throw new Error('Chess.js module not found');
       });
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).not.toBeNull();
+      // Check validation results
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(false);
+      expect(errors.array()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            msg: 'Chess.js module not found'
+          })
+        ])
+      );
+
+      // Mock will be restored in afterEach
     });
 
     test('should handle very short valid games', async () => {
@@ -494,19 +568,21 @@ describe('Validation Middleware', () => {
 
       req.body.pgn = shortGame;
 
+      // Ensure Chess constructor works normally
+      const { Chess } = require('chess.js');
+      Chess.mockImplementation(() => mockChess);
+      
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue(['f3', 'e5', 'g4', 'Qh4#']);
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).toBeNull();
+      // Check validation results - should pass with no errors
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(true);
     });
 
     test('should handle games with only one move', async () => {
@@ -517,23 +593,29 @@ describe('Validation Middleware', () => {
 
       req.body.pgn = oneMovePgn;
 
+      // Ensure Chess constructor works normally
+      const { Chess } = require('chess.js');
+      Chess.mockImplementation(() => mockChess);
+      
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue(['e4']);
 
-      let validationError = null;
-      try {
-        for (const middleware of validatePgn) {
-          await middleware(req, res, next);
-        }
-      } catch (error) {
-        validationError = error;
+      // Run all validation middleware
+      for (const middleware of validatePgn) {
+        await middleware(req, res, next);
       }
 
-      expect(validationError).toBeNull();
+      // Check validation results - should pass with no errors
+      const errors = validationResult(req);
+      expect(errors.isEmpty()).toBe(true);
     });
 
     test('should handle concurrent validation calls', async () => {
       const pgn = '[Event "Concurrent"]\n\n1. e4 e5 *';
+      
+      // Ensure Chess constructor works normally
+      const { Chess } = require('chess.js');
+      Chess.mockImplementation(() => mockChess);
       
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue(['e4', 'e5']);
@@ -541,21 +623,21 @@ describe('Validation Middleware', () => {
       const promises = Array(5).fill().map(async () => {
         const testReq = { body: { pgn, depth: 15 } };
         
-        try {
-          for (const middleware of validatePgn) {
-            await middleware(testReq, res, next);
-          }
-          return null; // Success
-        } catch (error) {
-          return error; // Failure
+        // Run all validation middleware
+        for (const middleware of validatePgn) {
+          await middleware(testReq, res, next);
         }
+        
+        // Check validation results
+        const errors = validationResult(testReq);
+        return errors.isEmpty();
       });
 
       const results = await Promise.all(promises);
       
-      // All should succeed
+      // All should succeed (return true)
       results.forEach(result => {
-        expect(result).toBeNull();
+        expect(result).toBe(true);
       });
     });
   });

@@ -13,19 +13,6 @@ const {
   calculatePlayerAccuracy
 } = require('../services/chessAnalyzer');
 
-// Sample PGN for longer testing if needed
-const longerPGN = `[Event "Test Game"]
-[Site "Test"]
-[Date "2024.01.01"]
-[Round "1"]
-[White "Player1"]
-[Black "Player2"]
-[Result "1-0"]
-
-1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 
-6. Re1 b5 7. Bb3 O-O 8. c3 d5 9. exd5 Nxd5 10. Nxe5 Nxe5 
-11. Rxe5 c6 12. d4 Bd6 13. Re1 Qh4 14. g3 Qh3 15. Bf4 1-0`;
-
 // Short PGN for faster testing
 const shortPGN = `[Event "Quick Test"]
 [White "Test White"]
@@ -214,5 +201,13 @@ describe('Enhanced Chess Analyzer Functions', () => {
     const singlePosition = [{ moveNumber: 1, evalChange: 10, classification: 'normal', color: 'w' }];
     expect(calculatePlayerAccuracy(singlePosition, 'w')).toBe(100);
     expect(detectGamePhases(singlePosition)).toBeDefined();
+  });
+
+  // Cleanup Stockfish engine after all tests to prevent hanging
+  afterAll(async () => {
+    const { stockfishEngine } = require('../services/stockfish');
+    if (stockfishEngine) {
+      stockfishEngine.cleanup();
+    }
   });
 });

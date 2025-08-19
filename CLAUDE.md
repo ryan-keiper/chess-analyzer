@@ -141,3 +141,4 @@ VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 - **Rate Limiting**: 100 requests per 15 minutes per IP
 - **Security**: Helmet.js, CORS, request validation
 - **Performance**: Redis caching, optimized analysis pipeline
+- Always run the test suite before making a commit

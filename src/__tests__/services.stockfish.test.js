@@ -696,7 +696,7 @@ describe('Stockfish Service', () => {
       }).not.toThrow();
     });
 
-    test('should handle concurrent analysis requests', async () => {
+    test('should handle serial analysis requests (queue prevents races)', async () => {
       stockfishEngine.isReady = true;
       stockfishEngine.engine = mockProcess;
 
@@ -706,14 +706,18 @@ describe('Stockfish Service', () => {
       const promise1 = stockfishEngine.analyzePosition(testFen1, 10, 1000);
       const promise2 = stockfishEngine.analyzePosition(testFen2, 10, 1000);
 
-      // Simulate responses
+      // Simulate responses - they will be processed serially
       setTimeout(() => {
+        // First analysis completes
         stockfishEngine.currentFen = testFen1;
         stockfishEngine.handleBestMove('bestmove e2e4');
-        
+      }, 10);
+
+      setTimeout(() => {
+        // Second analysis completes after first one
         stockfishEngine.currentFen = testFen2;
         stockfishEngine.handleBestMove('bestmove d2d4');
-      }, 10);
+      }, 20);
 
       const [result1, result2] = await Promise.all([promise1, promise2]);
 

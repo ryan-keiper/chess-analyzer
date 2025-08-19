@@ -10,6 +10,7 @@ class StockfishEngine {
     this.analysisCounter = 0; // Add counter to track analysis requests
     this.timeouts = new Set(); // Track active timeouts for cleanup
     this.isTestEnvironment = process.env.NODE_ENV === 'test'; // Detect test environment
+    this._analysisQueue = Promise.resolve(); // Queue to serialize analysis requests
   }
 
   async initialize() {
@@ -191,6 +192,15 @@ class StockfishEngine {
       await this.initialize();
     }
 
+    // Serialize analysis requests to avoid currentFen races
+    this._analysisQueue = this._analysisQueue.then(() => 
+      this._analyzePositionInternal(fen, depth, timeMs)
+    );
+    
+    return this._analysisQueue;
+  }
+
+  async _analyzePositionInternal(fen, depth, timeMs) {
     this.analysisCounter++;
     const analysisId = this.analysisCounter;
     console.log(`🎯 Starting analysis #${analysisId} for FEN: ${fen} (depth: ${depth})`);
@@ -202,48 +212,52 @@ class StockfishEngine {
         this.pendingAnalysis.delete(fen);
       }
       
-      // Setup timeout first
+      // Register analysis FIRST (before timeout) to avoid race condition
+      this.currentFen = fen;
+      this.pendingAnalysis.set(fen, { resolve, reject, requiredDepth: depth, analysisId });
+      
+      // Setup timeout after registering analysis
       const timeoutMs = Math.max(timeMs, depth * 1000); // At least depth * 1000ms
       console.log(`⏰ Setting timeout for ${timeoutMs}ms for analysis #${analysisId} (depth ${depth})`);
       
-      let timeoutId;
       const timeoutCallback = () => {
-        // Remove from tracking set if it exists
-        if (timeoutId && this.timeouts.has(timeoutId)) {
-          this.timeouts.delete(timeoutId);
-        }
+        console.error(`⏰ Analysis #${analysisId} timed out after ${timeoutMs}ms`);
+        console.error(`🐟 Engine state: ready=${this.isReady}, pending=${this.pendingAnalysis.size}`);
         
-        if (this.pendingAnalysis.has(fen)) {
-          console.error(`⏰ Analysis #${analysisId} timed out after ${timeoutMs}ms`);
-          console.error(`🐟 Engine state: ready=${this.isReady}, pending=${this.pendingAnalysis.size}`);
-          
+        // Get the analysis entry and use its stored reject function
+        const entry = this.pendingAnalysis.get(fen);
+        if (entry) {
           this.pendingAnalysis.delete(fen);
+          this.clearAnalysisTimeout(fen);
           
           // Try to stop current analysis and reset engine state
           this.sendCommand('stop').catch(err => console.error('Error sending stop:', err));
           
-          reject(new Error(`Analysis timeout after ${timeoutMs}ms for depth ${depth}`));
+          // Use the stored reject function to ensure the promise settles
+          entry.reject(new Error(`Analysis timeout after ${timeoutMs}ms for depth ${depth}`));
         }
       };
       
-      timeoutId = setTimeout(timeoutCallback, timeoutMs);
+      const timeoutId = setTimeout(timeoutCallback, timeoutMs);
       
       // Track timeout for cleanup (handle case where setTimeout returns different types in tests)
       if (timeoutId && (typeof timeoutId === 'object' || typeof timeoutId === 'number')) {
         this.timeouts.add(timeoutId);
       }
       
-      this.currentFen = fen;
-      this.pendingAnalysis.set(fen, { resolve, requiredDepth: depth, analysisId, timeoutId });
+      // Update the analysis entry with the timeout ID
+      const entry = this.pendingAnalysis.get(fen);
+      this.pendingAnalysis.set(fen, { ...entry, timeoutId });
       
       // Send commands to engine
       this.sendCommand(`position fen ${fen}`)
         .then(() => this.sendCommand(`go depth ${depth}`))
         .catch(error => {
           console.error(`❌ Error sending commands for analysis #${analysisId}:`, error);
+          const entry = this.pendingAnalysis.get(fen);
           this.clearAnalysisTimeout(fen);
           this.pendingAnalysis.delete(fen);
-          reject(error);
+          (entry?.reject || reject)(error);
         });
     });
   }
@@ -289,6 +303,9 @@ class StockfishEngine {
     
     // Clear pending analysis
     this.pendingAnalysis.clear();
+    
+    // Reset analysis queue to prevent tests from interfering with each other
+    this._analysisQueue = Promise.resolve();
   }
 }
 

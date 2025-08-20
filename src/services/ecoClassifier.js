@@ -104,6 +104,7 @@ class ECOClassifier {
     let bestChessOpeningEco = null;
     let bestChessOpeningData = null;
     let lastBookMove = 0;
+    const theoryTexts = []; // Collect theory texts for each book move
     const game = new Chess();
     
     console.log('Starting hybrid classification (WikiBooks depth + chess_openings names)...');
@@ -128,6 +129,18 @@ class ECOClassifier {
         if (wikibooksResult && wikibooksResult.opening_name) {
           bestWikiBooksOpening = wikibooksResult;
           lastBookMove = moveNumber;
+          
+          // Collect theory text for this move
+          if (wikibooksResult.theory_text) {
+            theoryTexts.push({
+              moveIndex: i, // Use actual move index (0-based) instead of chess move number
+              moveNumber: moveNumber, // Keep for reference
+              move: move.san || move,
+              theory_text: wikibooksResult.theory_text,
+              opening_name: wikibooksResult.opening_name
+            });
+          }
+          
           console.log(`Move ${moveNumber}: WikiBooks found "${wikibooksResult.opening_name}"`);
         }
         
@@ -159,14 +172,15 @@ class ECOClassifier {
       
       // Preserve WikiBooks educational content
       opening_name: bestWikiBooksOpening.opening_name,
-      theory_text: bestWikiBooksOpening.theory_text,
+      theory_text: bestWikiBooksOpening.theory_text, // Keep for backward compatibility
+      theoryTexts: theoryTexts, // NEW: Array of theory texts for each book move
       
       // Indicate data sources used
       nameSource: bestChessOpeningName ? 'chess_openings' : 'wikibooks',
       depthSource: 'wikibooks'
     };
 
-    console.log(`Hybrid result: "${hybridResult.name}" (${hybridResult.eco || 'no ECO'}) - book until move ${lastBookMove}`);
+    console.log(`Hybrid result: "${hybridResult.name}" (${hybridResult.eco || 'no ECO'}) - book until move ${lastBookMove}, collected ${theoryTexts.length} theory texts`);
     
     return hybridResult;
   }
@@ -278,7 +292,8 @@ class ECOClassifier {
       uci: bestOpening.uci,
       lastBookMove: lastBookMove,
       totalMoves: moveArray.length,
-      source: 'chess_openings_fallback'
+      source: 'chess_openings_fallback',
+      theoryTexts: [] // No theory texts available from chess_openings table
     };
   }
 
@@ -355,7 +370,8 @@ class ECOClassifier {
       uci: '',
       lastBookMove: 0,
       totalMoves: 0,
-      source: 'default'
+      source: 'default',
+      theoryTexts: []
     };
   }
 

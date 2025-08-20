@@ -359,6 +359,7 @@ async function analyzeGame(pgn, depth = 15) {
         eco: openingClassification.eco,
         pgn: openingClassification.pgn,
         lastBookMove: openingClassification.lastBookMove,
+        theoryTexts: openingClassification.theoryTexts || [], // NEW: Theory texts for each book move
         deviation: positions.find(p => !p.opening?.inBook && p.moveNumber <= 25)
       },
       // FIXED: Strategic context with accurate player calculations

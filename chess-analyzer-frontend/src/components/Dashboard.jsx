@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Header from './Header';
-import PgnInput from './PgnInput';
-import AnalysisResults from './AnalysisResults';
+import ChessAnalyzer from './ChessAnalyzer';
 import LoadingSpinner from './LoadingSpinner';
 import { analyzeGame } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { canAnalyze, logUsage } from '../services/supabase';
 
 function Dashboard({ onNavigateToPage }) {
-  const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
@@ -18,16 +16,14 @@ function Dashboard({ onNavigateToPage }) {
     const canUserAnalyze = await canAnalyze(user);
     if (!canUserAnalyze) {
       setError('Daily analysis limit reached. Upgrade to Pro for unlimited analyses!');
-      return;
+      throw new Error('Daily analysis limit reached. Upgrade to Pro for unlimited analyses!');
     }
 
     setLoading(true);
     setError(null);
-    setAnalysis(null);
 
     try {
       const result = await analyzeGame(pgn, depth);
-      setAnalysis(result.analysis);
       
       // Log usage
       await logUsage(user, 'analysis', { 
@@ -35,9 +31,13 @@ function Dashboard({ onNavigateToPage }) {
         depth 
       });
       
+      return result.analysis; // Return the analysis for the ChessAnalyzer component
+      
     } catch (err) {
-      setError(err.message || 'Failed to analyze game');
+      const errorMessage = err.message || 'Failed to analyze game';
+      setError(errorMessage);
       console.error('Analysis error:', err);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -52,13 +52,21 @@ function Dashboard({ onNavigateToPage }) {
       <Header onNavigateToPage={onNavigateToPage} />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-8">
-          <PgnInput onAnalyze={handleAnalyze} loading={loading} />
+          <ChessAnalyzer onAnalyze={handleAnalyze} loading={loading} />
           
-          {loading && <LoadingSpinner />}
+          {loading && (
+            <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 shadow-xl">
+                <LoadingSpinner />
+                <div className="text-center mt-4 text-gray-700">
+                  Analyzing your chess game...
+                </div>
+              </div>
+            </div>
+          )}
           
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="fixed top-4 right-4 bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg z-40 max-w-md">
               <h3 className="text-lg font-semibold text-red-800 mb-2">Analysis Failed</h3>
               <p className="text-red-600">{error}</p>
               {error.includes('limit reached') && (
@@ -69,11 +77,14 @@ function Dashboard({ onNavigateToPage }) {
                   Upgrade to Pro
                 </button>
               )}
+              <button 
+                onClick={() => setError(null)}
+                className="mt-2 ml-2 text-gray-600 hover:text-gray-800 text-sm underline"
+              >
+                Dismiss
+              </button>
             </div>
           )}
-          
-          {analysis && <AnalysisResults analysis={analysis} />}
-        </div>
       </main>
     </div>
   );

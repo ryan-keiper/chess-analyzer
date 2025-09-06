@@ -41,7 +41,7 @@ const MoveAnalysisDisplay = ({ text, currentMove, isAnalyzed, analysis, currentM
       {/* Analysis Source Status Lights */}
       {isAnalyzed && (
         <div className="flex items-center gap-4 mb-4 text-xs">
-          {/* WikiBooks Opening Theory Light */}
+          {/* Opening Book Status Light */}
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
               isOpeningPhase 
@@ -49,7 +49,7 @@ const MoveAnalysisDisplay = ({ text, currentMove, isAnalyzed, analysis, currentM
                 : 'bg-gray-300'
             }`}></div>
             <span className={`transition-colors ${isOpeningPhase ? 'text-blue-700 font-medium' : 'text-gray-500'}`}>
-              WikiBooks Opening Theory
+              Opening Book
             </span>
           </div>
           
@@ -82,7 +82,7 @@ const MoveAnalysisDisplay = ({ text, currentMove, isAnalyzed, analysis, currentM
             {isOpeningPhase ? (
               <>
                 <BookOpen className="w-3 h-3 mr-1" />
-                <span>WikiBooks opening theory</span>
+                <span>Opening book position</span>
               </>
             ) : (
               <>

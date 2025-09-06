@@ -1,6 +1,7 @@
 const { Chess } = require('chess.js');
 const { getStockfishEvaluation } = require('./stockfish');
 const { classifyOpening } = require('./ecoClassifier');
+const { getPolyglotBook } = require('./polyglotBook');
 
 /**
  * COMPLETELY FIXED chess game analyzer 
@@ -211,6 +212,10 @@ async function analyzeGame(pgn, depth = 15) {
     
     console.log(`PGN loaded successfully with ${testHistory.length} moves`);
 
+    // Initialize Polyglot book
+    const polyglotBook = getPolyglotBook();
+    await polyglotBook.initialize();
+    
     // Database-powered opening classification
     console.log('Classifying opening using database...');
     const openingClassification = await classifyOpening(testHistory);
@@ -227,12 +232,17 @@ async function analyzeGame(pgn, depth = 15) {
     // Reset game to start position for move-by-move analysis
     game.reset();
     let previousEval = 0;
+    let actualLastBookMove = 0;
     
-    console.log(`Analyzing ${history.length} moves with enhanced features...`);
+    console.log(`Analyzing ${history.length} moves with Polyglot book...`);
     
     // Analyze each position
     for (let i = 0; i < history.length; i++) {
       const move = history[i];
+      const currentFen = game.fen();
+      
+      // Check if this position is in the Polyglot book
+      const bookMoves = await polyglotBook.getBookMoves(currentFen);
       
       // Make the move
       const madeMove = game.move(move);
@@ -247,17 +257,26 @@ async function analyzeGame(pgn, depth = 15) {
       // Get Stockfish evaluation
       const evaluation = await getStockfishEvaluation(fen, depth);
       
-      // Determine if this move is still in opening theory
-      const inBook = moveNumber <= openingClassification.lastBookMove;
+      // Determine if this move is still in opening theory using Polyglot
+      const playedUci = move.from + move.to + (move.promotion || '');
+      const inBook = bookMoves.some(m => m.uci === playedUci);
+      
+      if (inBook) {
+        actualLastBookMove = moveNumber;
+      }
       
       // Create opening info for this position
       const openingInfo = {
         name: openingClassification.name,
         eco: openingClassification.eco,
         inBook: inBook,
-        popularity: inBook ? 1000 : 0,
-        topMoves: [],
-        source: 'database'
+        popularity: inBook && bookMoves.length > 0 ? bookMoves[0].count : 0,
+        topMoves: bookMoves.slice(0, 5).map(m => ({
+          uci: m.uci,
+          count: m.count,
+          score: m.score
+        })),
+        source: 'polyglot'
       };
       
       // Calculate evaluation change
@@ -313,7 +332,7 @@ async function analyzeGame(pgn, depth = 15) {
     blunders.sort((a, b) => b.evalChange - a.evalChange);
     
     console.log(`Analysis complete! Opening: ${openingClassification.name}`);
-    console.log(`Book moves: ${openingClassification.lastBookMove}, Total blunders: ${blunders.length}`);
+    console.log(`Book moves: ${actualLastBookMove}, Total blunders: ${blunders.length}`);
     console.log(`Player accuracy - White: ${whiteAccuracy}%, Black: ${blackAccuracy}%`);
     
     return {
@@ -358,8 +377,8 @@ async function analyzeGame(pgn, depth = 15) {
         name: openingClassification.name,
         eco: openingClassification.eco,
         pgn: openingClassification.pgn,
-        lastBookMove: openingClassification.lastBookMove,
-        theoryTexts: openingClassification.theoryTexts || [], // NEW: Theory texts for each book move
+        lastBookMove: actualLastBookMove,
+        theoryTexts: [], // No theory texts in Polyglot approach
         deviation: positions.find(p => !p.opening?.inBook && p.moveNumber <= 25)
       },
       // FIXED: Strategic context with accurate player calculations

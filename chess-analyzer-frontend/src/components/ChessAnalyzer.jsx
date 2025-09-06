@@ -119,28 +119,17 @@ const ChessAnalyzer = ({ onAnalyze, loading }) => {
           const isInBook = moveNumber <= lastBookMove;
           
           if (isInBook) {
-            // We're in opening theory - try to get WikiBooks text from the backend data
-            const theoryTexts = gameState.analysis?.opening?.theoryTexts || [];
+            // We're in opening book
+            const openingName = gameState.analysis?.opening?.name || 'Unknown Opening';
+            const eco = gameState.analysis?.opening?.eco || '';
             
-            // Find theory text for this specific move index
-            const moveTheoryText = theoryTexts.find(theory => theory.moveIndex === moveIndex);
-            
-            console.log(`Move ${moveNumber}: Looking for theory text`);
-            console.log('Available theory texts:', theoryTexts);
-            console.log('Found theory for this move:', moveTheoryText);
-            
-            if (moveTheoryText && moveTheoryText.theory_text && moveTheoryText.theory_text.trim()) {
-              // Use actual WikiBooks text from database
-              setAnalysisText(`Move ${moveNumber}: ${player} plays ${move.san}
+            setAnalysisText(`Move ${moveNumber}: ${player} plays ${move.san}
 
-WikiBooks Opening Theory:
-${moveTheoryText.theory_text}`);
-            } else {
-              // Fallback for book moves without theory text
-              setAnalysisText(`Move ${moveNumber}: ${player} plays ${move.san}
+Opening Book Move:
+This move is part of established opening theory.
+${openingName}${eco ? ` (${eco})` : ''}
 
-This move is still within established opening theory (${gameState.analysis?.opening?.name || 'Unknown Opening'}), but no detailed explanation is available from WikiBooks for this position.`);
-            }
+This position appears in the opening book with ${gameState.analysis?.opening?.bookDepth || lastBookMove} moves of established theory.`);
           } else {
             // Post-opening phase - AI analysis
             console.log(`Move ${moveIndex + 1} is OUT OF BOOK (lastBookMove: ${lastBookMove})`);
@@ -215,8 +204,8 @@ This move takes the game beyond established opening theory. Advanced positional 
       
       console.log('Analysis result:', result);
       console.log('Opening data:', result.opening);
-      console.log('Theory texts:', result.opening?.theoryTexts);
       console.log('LastBookMove:', result.opening?.lastBookMove);
+      console.log('Book depth:', result.opening?.bookDepth);
       
       // Update with analysis results
       setGameState(prev => ({ 

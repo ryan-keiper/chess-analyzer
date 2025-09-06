@@ -4,11 +4,11 @@ An AI-powered chess analysis SaaS application that provides human-language expla
 
 ## Features
 
-- 🧠 **Hybrid Analysis**: WikiBooks opening theory + AI strategic analysis
-- ⚡ **Fast Performance**: <3 second analysis time
-- 📚 **Professional Theory**: 1,977 WikiBooks pages of opening knowledge
-- 💰 **Cost Effective**: 83% reduction in AI costs through smart boundaries
-- 🔄 **Freemium Model**: 3 free analyses/day, $9.99/month Pro tier
+- 🧠 **Hybrid Analysis**: Polyglot opening book (124M+ positions) + AI strategic analysis
+- ⚡ **Fast Performance**: <3 second analysis time with 76,000+ lookups/second
+- 📚 **Professional Theory**: Complete opening coverage from 3.3M+ high-level games
+- 🎯 **Smart Boundaries**: Auto-detect when players leave established theory
+- 📊 **Detailed Insights**: Move-by-move analysis with opening theory and strategic evaluation
 
 ## Tech Stack
 
@@ -17,7 +17,7 @@ An AI-powered chess analysis SaaS application that provides human-language expla
 - **Chess Engine**: Stockfish integration
 - **Payment**: Stripe
 - **Auth**: Supabase Auth
-- **AI**: Tiered LLM approach (GPT-5 Nano/Mini/Sonnet 4)
+- **AI**: LLM integration for strategic analysis
 
 ## Project Structure
 
@@ -25,9 +25,9 @@ An AI-powered chess analysis SaaS application that provides human-language expla
 chess-analyzer-api/                    # Project root (monorepo)
 ├── chess-analyzer-frontend/           # React application
 ├── src/                              # Node.js backend API
-├── scripts/                          # Setup and utility scripts
+├── scripts/                          # Utility scripts (book rebuild)
 ├── supabase/migrations/              # Database schemas and migrations
-├── data/                             # Static data and seeds
+├── data/                             # Polyglot opening book (openings.bin)
 ├── .env                              # Environment variables
 ├── package.json                      # Main project dependencies
 └── docker-compose.yml                # Container orchestration
@@ -65,13 +65,7 @@ cp .env.example .env
 cp chess-analyzer-frontend/.env.example chess-analyzer-frontend/.env
 ```
 
-4. Database setup
-```bash
-# Setup WikiBooks integration
-npm run setup-wikibooks
-```
-
-5. Start development servers
+4. Start development servers
 ```bash
 # Backend API (from project root)
 npm run dev
@@ -89,6 +83,7 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 STRIPE_SECRET_KEY=your_stripe_secret_key
 STRIPE_WEBHOOK_SECRET=your_webhook_secret
+BOOK_BIN_PATH=/path/to/openings.bin
 NODE_ENV=development
 PORT=3001
 ```
@@ -102,23 +97,25 @@ VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 
 ## Architecture
 
-### WikiBooks Integration Strategy
-- **Opening Phase**: Use WikiBooks theory explanations (free)
+### Polyglot Opening Book Strategy
+- **Opening Phase**: Use Polyglot book with 124.7M positions for instant move validation
 - **Strategic Phase**: Use LLM analysis for post-book decisions
 - **Smart Boundaries**: Auto-detect when players leave established theory
+- **Complete Coverage**: Both White and Black positions included
 
-### Cost Optimization
-- Traditional approach: $0.90 per game
-- WikiBooks hybrid: $0.15 per game (83% reduction)
-- Pro tier economics: 40% profit margin
+### Technical Advantages
+- **Zero API calls** for opening detection
+- **Local lookups** eliminate rate limiting
+- **Binary search** for O(log n) position lookups
+- **Memory efficient** caching system
 
 ### Analysis Response Format
 ```javascript
 {
   gameInfo: {
     opening: "Ruy Lopez: Marshall Attack",
-    openingUrl: "https://en.wikibooks.org/wiki/...",
-    analysisType: "enhanced_wikibooks"
+    eco: "C89",
+    analysisType: "polyglot_enhanced"
   },
   summary: {
     bookMoves: 12,
@@ -134,9 +131,11 @@ VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
       moveNumber: 3,
       inBook: true,
       phase: "opening",
-      theory: {
+      bookInfo: {
         opening_name: "Ruy Lopez",
-        theory_text: "The Spanish Opening aims to..."
+        eco: "C60",
+        inBook: true,
+        moveCount: 65535
       }
     },
     {
@@ -164,20 +163,14 @@ VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 # Start backend API
 npm run dev
 
-# Start frontend development server
-npm run dev:frontend
+# Run tests
+npm test
 
-# Start both frontend and backend concurrently
-npm run dev:all
+# Run tests in watch mode
+npm run test:watch
 
-# Install all dependencies (root + frontend)
-npm run install:all
-
-# Setup WikiBooks database
-npm run setup-wikibooks
-
-# Test WikiBooks integration
-npm run test-wikibooks
+# Frontend development (from chess-analyzer-frontend directory)
+cd chess-analyzer-frontend && npm run dev
 ```
 
 ## Database Schema
@@ -186,8 +179,8 @@ The application uses Supabase (PostgreSQL) with the following key tables:
 
 - **users**: User authentication and subscription management
 - **analyses**: Stored game analyses and results  
-- **openings**: Chess opening database (3,541+ openings)
-- **wikibooks_positions**: WikiBooks theory positions and explanations
+- **chess_openings**: Chess opening database (3,541+ openings)
+- **openings_prefix**: Prefix hashes for fast opening lookup
 - **subscriptions**: Stripe subscription tracking
 
 ## API Endpoints
@@ -219,25 +212,19 @@ Ensure all environment variables from the examples above are configured in your 
 
 ## Performance Metrics
 
-### Before WikiBooks Integration
+### Before Polyglot Integration
 - ⏱️ **15+ seconds** analysis time
-- 🌐 **15-20 API calls** per game to Lichess
+- 🌐 **15-20 API calls** per game to external services
 - ⚠️ **Rate limiting** issues
-- 💰 **High LLM costs** for opening moves
+- 📊 **Multiple API dependencies** for opening moves
 
-### After WikiBooks Integration  
+### After Polyglot Integration  
 - ⚡ **<3 seconds** analysis time
 - 🚫 **Zero API calls** for opening detection
-- ✅ **No rate limiting**
-- 💰 **83% cost reduction** on LLM usage
-- 📚 **Professional opening explanations**
-
-## Business Model
-
-**Freemium SaaS Model:**
-- **Free Tier**: 3 analyses per day
-- **Pro Tier**: $9.99/month unlimited analyses
-- **Target Economics**: 40% profit margin with WikiBooks optimization
+- ✅ **No rate limiting** - all lookups are local
+- 🔧 **Optimized LLM usage** for strategic analysis only
+- 📚 **Complete opening coverage** from 124M+ positions
+- 🎯 **Accurate book depth** tracking
 
 ## Contributing
 

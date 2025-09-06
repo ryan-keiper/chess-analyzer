@@ -6,8 +6,13 @@ This folder contains SQL migration scripts for the Chess Analyzer database schem
 
 Run these scripts in numerical order in your Supabase SQL Editor:
 
-1. **001_initial_schema.sql** - Creates all initial tables (users, usage_logs, etc.)
+1. **001_initial_schema.sql** - Creates initial tables (users, usage_logs, analyses, subscriptions)
 2. **002_user_profiles_trigger.sql** - Adds trigger to auto-create user profiles on signup
+3. **003_create_chess_openings_table.sql** - Creates chess_openings table for ECO database
+4. **004_wikibooks_positions_table.sql** - (Legacy) WikiBooks integration - can skip if using Polyglot only
+5. **005_enhance_chess_openings.sql** - Adds polyglot_key and path_hash columns for fast lookups
+6. **006_create_openings_prefix.sql** - Creates openings_prefix table for transposition handling
+7. **007_remove_wikibooks.sql** - Removes WikiBooks tables and columns (cleanup migration)
 
 ## How to Apply Migrations
 
@@ -26,18 +31,28 @@ Run these scripts in numerical order in your Supabase SQL Editor:
 Keep track of which migrations have been applied:
 
 ### Development Environment
-- [x] 001_initial_schema.sql (Applied: 2025-01-XX)
-- [x] 002_user_profiles_trigger.sql (Applied: 2025-01-XX)
+- [x] 001_initial_schema.sql
+- [x] 002_user_profiles_trigger.sql
+- [x] 003_create_chess_openings_table.sql
+- [x] 004_wikibooks_positions_table.sql
+- [x] 005_enhance_chess_openings.sql
+- [x] 006_create_openings_prefix.sql
+- [x] 007_remove_wikibooks.sql
 
 ### Production Environment  
 - [ ] 001_initial_schema.sql
 - [ ] 002_user_profiles_trigger.sql
+- [ ] 003_create_chess_openings_table.sql
+- [ ] 004_wikibooks_positions_table.sql (optional - can skip)
+- [ ] 005_enhance_chess_openings.sql
+- [ ] 006_create_openings_prefix.sql
+- [ ] 007_remove_wikibooks.sql (only if 004 was applied)
 
 ## Creating New Migrations
 
 When making database changes:
 
-1. Create new file: `003_descriptive_name.sql`
+1. Create new file: `008_descriptive_name.sql` (next number in sequence)
 2. Test in development first
 3. Update this README with the new migration
 4. Apply to production when ready

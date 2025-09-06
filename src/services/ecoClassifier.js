@@ -1,33 +1,30 @@
 const { Chess } = require('chess.js');
+const crypto = require('crypto');
 const { supabase } = require('./supabase');
+const { getPolyglotBook } = require('./polyglotBook');
 
 /**
- * WikiBooks-based ECO Classifier - Uses WikiBooks positions table for comprehensive opening theory
+ * Enhanced ECO Classifier - Uses Polyglot book for depth and chess_openings for naming
  */
 class ECOClassifier {
   constructor() {
     this.positionCache = new Map();
-    this.wikibooksCache = new Map(); // Cache WikiBooks position lookups
-    this.chessOpeningsCache = new Map(); // Cache chess_openings fallback lookups
+    this.openingsCache = new Map();
     this.isLoaded = false;
+    this.polyglotBook = null;
   }
 
   async loadDatabase() {
     if (this.isLoaded) return;
     
     try {
-      console.log('Initializing WikiBooks-based ECO classifier...');
+      console.log('Initializing enhanced ECO classifier...');
       
-      // Check WikiBooks positions table
-      const { count: wikibooksCount, error: wikibooksError } = await supabase
-        .from('wikibooks_positions')
-        .select('*', { count: 'exact', head: true });
+      // Initialize Polyglot book
+      this.polyglotBook = getPolyglotBook();
+      await this.polyglotBook.initialize();
       
-      if (wikibooksError) {
-        throw new Error(`WikiBooks database connection failed: ${wikibooksError.message}`);
-      }
-      
-      // Check chess_openings table as fallback
+      // Check chess_openings table
       const { count: openingsCount, error: openingsError } = await supabase
         .from('chess_openings')
         .select('*', { count: 'exact', head: true });
@@ -36,7 +33,8 @@ class ECOClassifier {
         throw new Error(`Chess openings database connection failed: ${openingsError.message}`);
       }
       
-      console.log(`✅ WikiBooks ECO classifier ready with ${wikibooksCount} WikiBooks positions + ${openingsCount} chess openings fallback`);
+      const bookStats = this.polyglotBook.getStatistics();
+      console.log(`✅ Enhanced ECO classifier ready with ${bookStats.positions} book positions + ${openingsCount} chess openings`);
       this.isLoaded = true;
       
     } catch (error) {
@@ -46,7 +44,7 @@ class ECOClassifier {
   }
 
   /**
-   * Main classification function using WikiBooks positions table
+   * Main classification function using Polyglot book + chess_openings
    */
   async classify(moves) {
     if (!this.isLoaded) {
@@ -68,88 +66,72 @@ class ECOClassifier {
         return this.getDefaultClassification();
       }
 
-      // Get hybrid classification from WikiBooks (depth) + chess_openings (names)
-      const wikibooksResult = await this.classifyFromWikiBooks(moveArray);
+      // Use dual approach: Polyglot for book depth + chess_openings for naming
+      const result = await this.classifyWithPolyglot(moveArray);
       
-      if (wikibooksResult && (wikibooksResult.opening_name || wikibooksResult.name)) {
-        console.log(`Hybrid WikiBooks found: ${wikibooksResult.name} (${wikibooksResult.eco || 'no ECO'}) - book until move ${wikibooksResult.lastBookMove}`);
-        return wikibooksResult;
-      }
-
-      // Fallback to chess_openings table if WikiBooks doesn't have the position
-      console.log('WikiBooks classification failed, trying chess_openings fallback...');
-      const fallbackResult = await this.classifyFromChessOpenings(moveArray);
-      
-      if (fallbackResult && fallbackResult.eco) {
-        console.log(`Chess openings fallback found: ${fallbackResult.name} (book until move ${fallbackResult.lastBookMove})`);
-        return fallbackResult;
+      if (result && result.name) {
+        console.log(`Opening found: ${result.name} (${result.eco || 'no ECO'}) - book until move ${result.lastBookMove}`);
+        return result;
       }
 
       return this.getDefaultClassification();
 
     } catch (error) {
-      console.error('Error in WikiBooks classification:', error.message);
+      console.error('Error in opening classification:', error.message);
       return this.getDefaultClassification();
     }
   }
 
   /**
-   * Hybrid classification: WikiBooks depth + chess_openings names
-   * Gets the comprehensive book depth from WikiBooks while using the superior
-   * opening names from chess_openings table for better descriptiveness
+   * Enhanced classification using Polyglot book for depth + chess_openings for naming
    */
-  async classifyFromWikiBooks(moveArray) {
-    let bestWikiBooksOpening = null;
-    let bestChessOpeningName = null;
-    let bestChessOpeningEco = null;
-    let bestChessOpeningData = null;
+  async classifyWithPolyglot(moveArray) {
+    let bestOpeningName = null;
+    let bestOpeningEco = null;
+    let bestOpeningData = null;
     let lastBookMove = 0;
-    const theoryTexts = []; // Collect theory texts for each book move
     const game = new Chess();
     
-    console.log('Starting hybrid classification (WikiBooks depth + chess_openings names)...');
+    console.log('Starting classification with Polyglot book...');
     
-    // Check positions up to move 30 (WikiBooks has deeper theory)
-    for (let i = 0; i < Math.min(moveArray.length, 30); i++) {
+    // Track book moves using Polyglot
+    // Note: The book typically only contains positions where White is to move
+    let stillInBook = true;
+    
+    for (let i = 0; i < Math.min(moveArray.length, 60); i++) {
       try {
         const move = moveArray[i];
-        game.move(move);
+        const currentFen = game.fen();
+        const isWhiteTurn = game.turn() === 'w';
         
-        const fen = game.fen();
-        const epd = this.fenToEpd(fen);
-        const moveNumber = Math.ceil((i + 1) / 2);
-        
-        // Parallel lookups for both tables
-        const [wikibooksResult, chessOpeningsResult] = await Promise.all([
-          this.queryWikiBooksPosition(epd),
-          this.queryChessOpeningsPosition(epd)
-        ]);
-        
-        // WikiBooks drives the book depth (primary source for "in book" determination)
-        if (wikibooksResult && wikibooksResult.opening_name) {
-          bestWikiBooksOpening = wikibooksResult;
-          lastBookMove = moveNumber;
-          
-          // Collect theory text for this move
-          if (wikibooksResult.theory_text) {
-            theoryTexts.push({
-              moveIndex: i, // Use actual move index (0-based) instead of chess move number
-              moveNumber: moveNumber, // Keep for reference
-              move: move.san || move,
-              theory_text: wikibooksResult.theory_text,
-              opening_name: wikibooksResult.opening_name
-            });
-          }
-          
-          console.log(`Move ${moveNumber}: WikiBooks found "${wikibooksResult.opening_name}"`);
+        // Check if this position is in the Polyglot book
+        // Only check when it's White's turn (book limitation)
+        let bookMoves = [];
+        if (isWhiteTurn) {
+          bookMoves = await this.polyglotBook.getBookMoves(currentFen);
         }
         
-        // chess_openings provides superior naming (secondary source for descriptive names)
-        if (chessOpeningsResult && chessOpeningsResult.eco) {
-          bestChessOpeningName = chessOpeningsResult.name;
-          bestChessOpeningEco = chessOpeningsResult.eco;
-          bestChessOpeningData = chessOpeningsResult;
-          console.log(`Move ${moveNumber}: chess_openings found "${chessOpeningsResult.name}" (${chessOpeningsResult.eco})`);
+        // Make the move
+        game.move(move);
+        
+        // Track book depth
+        if (stillInBook && isWhiteTurn) {
+          if (bookMoves.length > 0) {
+            // Check if the played move was a book move
+            const playedUci = this.moveToUci(move);
+            const isBookMove = bookMoves.some(m => m.uci === playedUci);
+            
+            if (isBookMove) {
+              // Update lastBookMove (full move number)
+              lastBookMove = Math.floor(i / 2) + 1;
+            } else {
+              // Position was in book but move wasn't - player left book
+              stillInBook = false;
+            }
+          } else {
+            // Position not in book
+            stillInBook = false;
+          }
         }
         
       } catch (moveError) {
@@ -157,55 +139,93 @@ class ECOClassifier {
         break;
       }
     }
-
-    if (!bestWikiBooksOpening) return null;
-
-    // Hybrid result: WikiBooks depth + chess_openings name quality
-    const hybridResult = {
-      eco: bestChessOpeningEco, // From chess_openings (better ECO classification)
-      name: bestChessOpeningName || bestWikiBooksOpening.opening_name || bestWikiBooksOpening.page_title, // Prefer chess_openings name
-      pgn: bestChessOpeningData?.pgn || bestWikiBooksOpening.move_sequence || '',
-      uci: bestChessOpeningData?.uci || '',
-      lastBookMove: lastBookMove, // From WikiBooks (deeper/more accurate book depth)
-      totalMoves: moveArray.length,
-      source: 'wikibooks_hybrid', // Indicate this is a hybrid result
-      
-      // Preserve WikiBooks educational content
-      opening_name: bestWikiBooksOpening.opening_name,
-      theory_text: bestWikiBooksOpening.theory_text, // Keep for backward compatibility
-      theoryTexts: theoryTexts, // NEW: Array of theory texts for each book move
-      
-      // Indicate data sources used
-      nameSource: bestChessOpeningName ? 'chess_openings' : 'wikibooks',
-      depthSource: 'wikibooks'
-    };
-
-    console.log(`Hybrid result: "${hybridResult.name}" (${hybridResult.eco || 'no ECO'}) - book until move ${lastBookMove}, collected ${theoryTexts.length} theory texts`);
     
-    return hybridResult;
+    // Now find the best opening name using chess_openings table
+    // Try two approaches: position-based and move-order based
+    
+    // Reset game for position lookups
+    game.reset();
+    const uciMoves = [];
+    
+    for (let i = 0; i < moveArray.length; i++) {
+      const move = moveArray[i];
+      game.move(move);
+      uciMoves.push(this.moveToUci(move));
+      
+      const fen = game.fen();
+      const epd = this.fenToEpd(fen);
+      
+      // Look up position in chess_openings
+      const openingResult = await this.queryChessOpeningsPosition(epd);
+      
+      if (openingResult && openingResult.eco) {
+        bestOpeningName = openingResult.name;
+        bestOpeningEco = openingResult.eco;
+        bestOpeningData = openingResult;
+      }
+    }
+    
+    // If no position match, try prefix-based lookup
+    if (!bestOpeningName && uciMoves.length > 0) {
+      const prefixResult = await this.queryByPrefix(uciMoves);
+      if (prefixResult) {
+        bestOpeningName = prefixResult.name;
+        bestOpeningEco = prefixResult.eco;
+        bestOpeningData = prefixResult;
+      }
+    }
+    
+    if (!bestOpeningName) return null;
+    
+    return {
+      eco: bestOpeningEco,
+      name: bestOpeningName,
+      pgn: bestOpeningData?.pgn || '',
+      uci: bestOpeningData?.uci || '',
+      lastBookMove: lastBookMove,
+      totalMoves: moveArray.length,
+      source: 'polyglot',
+      bookDepth: lastBookMove,
+      theoryTexts: [] // No theory texts in new approach
+    };
   }
 
   /**
-   * Query WikiBooks positions table for a specific position
+   * Convert a chess.js move object to UCI notation
    */
-  async queryWikiBooksPosition(epd) {
-    // Check cache first
-    if (this.wikibooksCache.has(epd)) {
-      return this.wikibooksCache.get(epd);
-    }
-    
+  moveToUci(move) {
+    if (typeof move === 'string') return move;
+    return move.from + move.to + (move.promotion || '');
+  }
+
+  /**
+   * Query opening by move prefix using the prefix table
+   */
+  async queryByPrefix(uciMoves) {
     try {
-      const { data: position, error } = await supabase
-        .from('wikibooks_positions')
-        .select('*')
-        .eq('epd', epd)
+      const uciString = uciMoves.join(' ');
+      const prefixHash = crypto.createHash('sha256').update(uciString).digest('hex');
+      
+      const { data, error } = await supabase
+        .from('openings_prefix')
+        .select('line_id, prefix_plies')
+        .eq('prefix_hash', prefixHash)
+        .order('prefix_plies', { ascending: false })
+        .limit(1)
         .single();
       
-      const result = (position && !error && position.opening_name) ? position : null;
-      this.wikibooksCache.set(epd, result);
-      return result;
+      if (error || !data) return null;
+      
+      // Get the full opening details
+      const { data: opening, error: openingError } = await supabase
+        .from('chess_openings')
+        .select('*')
+        .eq('id', data.line_id)
+        .single();
+      
+      return openingError ? null : opening;
     } catch (error) {
-      this.wikibooksCache.set(epd, null);
+      console.warn('Error querying by prefix:', error.message);
       return null;
     }
   }
@@ -215,8 +235,8 @@ class ECOClassifier {
    */
   async queryChessOpeningsPosition(epd) {
     // Check cache first
-    if (this.chessOpeningsCache.has(epd)) {
-      return this.chessOpeningsCache.get(epd);
+    if (this.openingsCache.has(epd)) {
+      return this.openingsCache.get(epd);
     }
     
     try {
@@ -227,75 +247,14 @@ class ECOClassifier {
         .single();
       
       const result = (opening && !error && opening.eco) ? opening : null;
-      this.chessOpeningsCache.set(epd, result);
+      this.openingsCache.set(epd, result);
       return result;
     } catch (error) {
-      this.chessOpeningsCache.set(epd, null);
+      this.openingsCache.set(epd, null);
       return null;
     }
   }
 
-  /**
-   * Fallback: Get opening classification from chess_openings table
-   */
-  async classifyFromChessOpenings(moveArray) {
-    let bestOpening = null;
-    let lastBookMove = 0;
-    const game = new Chess();
-    
-    // Check positions up to move 25
-    for (let i = 0; i < Math.min(moveArray.length, 25); i++) {
-      try {
-        const move = moveArray[i];
-        game.move(move);
-        
-        const fen = game.fen();
-        const epd = this.fenToEpd(fen);
-        
-        // Check cache first
-        if (this.chessOpeningsCache.has(epd)) {
-          const cachedOpening = this.chessOpeningsCache.get(epd);
-          if (cachedOpening) {
-            bestOpening = cachedOpening;
-            lastBookMove = Math.ceil((i + 1) / 2);
-          }
-          continue;
-        }
-        
-        // Query chess_openings table
-        const { data: opening, error } = await supabase
-          .from('chess_openings')
-          .select('*')
-          .eq('epd', epd)
-          .single();
-        
-        if (opening && !error && opening.eco) {
-          bestOpening = opening;
-          lastBookMove = Math.ceil((i + 1) / 2);
-          this.chessOpeningsCache.set(epd, opening);
-        } else {
-          this.chessOpeningsCache.set(epd, null);
-        }
-        
-      } catch (moveError) {
-        console.warn(`Error processing move ${i + 1}:`, moveError.message);
-        break;
-      }
-    }
-
-    if (!bestOpening) return null;
-
-    return {
-      eco: bestOpening.eco,
-      name: bestOpening.name,
-      pgn: bestOpening.pgn,
-      uci: bestOpening.uci,
-      lastBookMove: lastBookMove,
-      totalMoves: moveArray.length,
-      source: 'chess_openings_fallback',
-      theoryTexts: [] // No theory texts available from chess_openings table
-    };
-  }
 
 
 
@@ -380,8 +339,10 @@ class ECOClassifier {
    */
   clearCache() {
     this.positionCache.clear();
-    this.wikibooksCache.clear();
-    this.chessOpeningsCache.clear();
+    this.openingsCache.clear();
+    if (this.polyglotBook) {
+      this.polyglotBook.clearCache();
+    }
     console.log('All caches cleared');
   }
 }

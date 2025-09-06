@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Crown, 
   CheckCircle, 
@@ -45,7 +45,7 @@ const PaymentSuccessPage = ({ onNavigateToPage }) => {
     };
 
     verifyPayment();
-  }, []);
+  }, [user, refreshUserTier]);
 
   const handleStartAnalyzing = () => {
     onNavigateToPage?.('dashboard');

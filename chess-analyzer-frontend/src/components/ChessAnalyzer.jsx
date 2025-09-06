@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
-import { Upload, Play, Settings, RotateCcw } from 'lucide-react';
+import { Upload, Play, Settings } from 'lucide-react';
 import MoveAnalysisDisplay from './MoveAnalysisDisplay';
 import GameNavigation from './GameNavigation';
 import MoveList from './MoveList';
@@ -36,24 +36,6 @@ const ChessAnalyzer = ({ onAnalyze, loading }) => {
 6. Re1 b5 7. Bb3 O-O 8. c3 d5 9. exd5 Nxd5 10. Nxe5 Nxe5 
 11. Rxe5 c6 12. d4 Bd6 13. Re1 Qh4?? 14. g3 Qh3 15. Bf4 1-0`;
 
-  // Helper function to format moves as notation (1. e4 e5 2. Nf3 Nc6 etc.)
-  const formatMovesAsNotation = (moves) => {
-    let notation = '';
-    for (let i = 0; i < moves.length; i += 2) {
-      const moveNumber = Math.floor(i / 2) + 1;
-      const whiteMove = moves[i];
-      const blackMove = moves[i + 1];
-      
-      notation += `${moveNumber}. ${whiteMove.san}`;
-      if (blackMove) {
-        notation += ` ${blackMove.san}`;
-      }
-      if (i + 2 < moves.length) {
-        notation += ' ';
-      }
-    }
-    return notation;
-  };
 
   // Parse PGN and setup moves for navigation
   const setupGame = useCallback((pgnString, analysisData = null) => {

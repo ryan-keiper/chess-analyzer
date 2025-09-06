@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Crown, Zap, User, Settings, LogOut, CreditCard, BarChart3 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Crown, Zap, Settings, LogOut, CreditCard, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Header = ({ onNavigateToPage }) => {

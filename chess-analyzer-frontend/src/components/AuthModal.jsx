@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Mail, Lock, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { X, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const AuthModal = ({ mode, onClose, onSwitchMode }) => {

@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Crown, 
   Check, 
   X, 
-  Zap, 
   ArrowLeft,
-  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserTier } from '../services/supabase';

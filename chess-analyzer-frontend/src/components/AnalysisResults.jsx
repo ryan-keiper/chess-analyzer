@@ -1,5 +1,4 @@
-import React from 'react';
-import { AlertTriangle, TrendingDown, User, Trophy, Target, BookOpen, Clock, Zap, Star, Eye, HelpCircle } from 'lucide-react';
+import { AlertTriangle, TrendingDown, Trophy, Target, BookOpen, Clock, Zap, Eye, HelpCircle } from 'lucide-react';
 
 const AnalysisResults = ({ analysis }) => {
   if (!analysis) return null;
@@ -31,34 +30,6 @@ const AnalysisResults = ({ analysis }) => {
       case 'major': return 'blunder-major';
       case 'minor': return 'blunder-minor';
       default: return 'blunder-inaccuracy';
-    }
-  };
-
-  const getClassificationIcon = (classification) => {
-    switch (classification) {
-      case 'book': return '📚';
-      case 'excellent': return '✨';
-      case 'good': return '👍';
-      case 'normal': return '➡️';
-      case 'questionable': return '🤔';
-      case 'inaccuracy': return '📝';
-      case 'mistake': return '⚠️';
-      case 'blunder': return '💥';
-      default: return '➡️';
-    }
-  };
-
-  const getClassificationColor = (classification) => {
-    switch (classification) {
-      case 'book': return 'text-blue-600 bg-blue-50';
-      case 'excellent': return 'text-green-600 bg-green-50';
-      case 'good': return 'text-green-500 bg-green-50';
-      case 'normal': return 'text-gray-600 bg-gray-50';
-      case 'questionable': return 'text-yellow-600 bg-yellow-50';
-      case 'inaccuracy': return 'text-orange-600 bg-orange-50';
-      case 'mistake': return 'text-red-500 bg-red-50';
-      case 'blunder': return 'text-red-700 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
     }
   };
 

@@ -1,5 +1,9 @@
 # Chess Analyzer
 
+[![CI](https://github.com/ryankeiper/chess-analyzer-api/actions/workflows/ci.yml/badge.svg)](https://github.com/ryankeiper/chess-analyzer-api/actions/workflows/ci.yml)
+[![Security](https://github.com/ryankeiper/chess-analyzer-api/actions/workflows/security.yml/badge.svg)](https://github.com/ryankeiper/chess-analyzer-api/actions/workflows/security.yml)
+[![Coverage](https://github.com/ryankeiper/chess-analyzer-api/actions/workflows/coverage.yml/badge.svg)](https://github.com/ryankeiper/chess-analyzer-api/actions/workflows/coverage.yml)
+
 An AI-powered chess analysis SaaS application that provides human-language explanations of chess games.
 
 ## Features

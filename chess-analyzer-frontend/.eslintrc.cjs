@@ -17,5 +17,7 @@ module.exports = {
       { allowConstantExport: true },
     ],
     'react/prop-types': 'off', // We'll add TypeScript later
+    'react/no-unescaped-entities': 'off', // Allow apostrophes and quotes in JSX
+    'no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
   },
 }

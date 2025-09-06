@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Crown, Zap, Target, Users, ChevronRight, Play, Star, CheckCircle } from 'lucide-react';
 import AuthModal from './AuthModal';
 

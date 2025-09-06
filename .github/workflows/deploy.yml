@@ -1,0 +1,40 @@
+name: Deploy Chess Analyzer
+
+# This workflow is for future deployment - currently manual trigger only
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  deploy-notification:
+    name: Deployment Placeholder
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deployment Notice
+      run: |
+        echo "🚀 Manual deployment workflow triggered"
+        echo "Environment: ${{ github.event.inputs.environment }}"
+        echo ""
+        echo "This workflow is a placeholder for future deployment."
+        echo "When ready to deploy, update this workflow with your deployment provider."
+        echo ""
+        echo "Common deployment options:"
+        echo "- Railway (railway.app)"
+        echo "- Render (render.com)"
+        echo "- Vercel (vercel.com)"
+        echo "- Fly.io (fly.io)"
+        echo "- AWS/GCP/Azure"
+        echo ""
+        echo "For now, run the CI workflow to verify build quality."

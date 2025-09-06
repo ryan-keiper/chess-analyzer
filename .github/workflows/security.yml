@@ -1,0 +1,153 @@
+name: Security Scanning
+
+on:
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'package*.json'
+      - 'chess-analyzer-frontend/package*.json'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  dependency-scanning:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Run npm audit on backend
+      run: |
+        echo "## Backend Security Audit"
+        npm audit --json > backend-audit.json || true
+        npm audit || true
+    
+    - name: Run npm audit on frontend
+      working-directory: ./chess-analyzer-frontend
+      run: |
+        echo "## Frontend Security Audit"
+        npm audit --json > ../frontend-audit.json || true
+        npm audit || true
+    
+    - name: Check for critical vulnerabilities
+      run: |
+        echo "Checking for critical vulnerabilities..."
+        backend_critical=$(cat backend-audit.json | jq '.metadata.vulnerabilities.critical // 0')
+        frontend_critical=$(cat frontend-audit.json | jq '.metadata.vulnerabilities.critical // 0')
+        
+        if [ "$backend_critical" -gt 0 ] || [ "$frontend_critical" -gt 0 ]; then
+          echo "❌ Critical vulnerabilities found!"
+          echo "Backend: $backend_critical critical"
+          echo "Frontend: $frontend_critical critical"
+          exit 1
+        else
+          echo "✅ No critical vulnerabilities found"
+        fi
+
+  code-scanning:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Check for hardcoded secrets
+      run: |
+        echo "Scanning for potential secrets..."
+        # Check for potential API keys, tokens, etc.
+        ! grep -r --include="*.js" --include="*.jsx" --include="*.json" \
+          --exclude-dir=node_modules --exclude-dir=dist \
+          -E "(api[_-]?key|secret|token|password|pwd|pass|apikey).*=.*['\"][a-zA-Z0-9]{20,}['\"]" . || \
+          (echo "⚠️ Potential hardcoded secrets found!" && exit 1)
+    
+    - name: Check for SQL injection risks
+      run: |
+        echo "Scanning for SQL injection vulnerabilities..."
+        # Look for string concatenation in SQL queries
+        ! grep -r --include="*.js" --exclude-dir=node_modules \
+          -E "query.*\\+.*\\$|\\$.*\\+.*query" . || \
+          echo "⚠️ Potential SQL injection risk found (string concatenation in queries)"
+      continue-on-error: true
+    
+    - name: Check for XSS vulnerabilities
+      run: |
+        echo "Scanning for XSS vulnerabilities..."
+        # Check for dangerouslySetInnerHTML usage
+        ! grep -r --include="*.jsx" --exclude-dir=node_modules \
+          "dangerouslySetInnerHTML" . || \
+          echo "⚠️ dangerouslySetInnerHTML usage found - ensure proper sanitization"
+      continue-on-error: true
+
+  container-scanning:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Check for Dockerfile
+      id: check_dockerfile
+      run: |
+        if [ -f Dockerfile ]; then
+          echo "dockerfile_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "dockerfile_exists=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Run Trivy container scan
+      if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+      continue-on-error: true
+    
+    - name: Upload Trivy results
+      if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-scanning, code-scanning]
+    if: always()
+    
+    steps:
+    - name: Summary
+      run: |
+        echo "## Security Scan Summary"
+        echo "- Dependency Scanning: ${{ needs.dependency-scanning.result }}"
+        echo "- Code Scanning: ${{ needs.code-scanning.result }}"
+        
+        if [ "${{ needs.dependency-scanning.result }}" != "success" ] || \
+           [ "${{ needs.code-scanning.result }}" != "success" ]; then
+          echo ""
+          echo "⚠️ Security issues detected. Please review the logs above."
+        else
+          echo ""
+          echo "✅ All security checks passed!"
+        fi

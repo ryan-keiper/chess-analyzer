@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   Crown, 
   ArrowLeft, 
   Check, 
   CreditCard,
   Shield,
-  Zap,
   Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';

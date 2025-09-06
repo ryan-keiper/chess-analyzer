@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase, USER_TIERS, fetchUserTier } from '../services/supabase';
 import { 
   getCachedTier, 
@@ -157,9 +157,7 @@ export const AuthProvider = ({ children }) => {
           refreshUserTier(currentUser, true);
         }
         
-        if (loading) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     );
 

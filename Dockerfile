@@ -1,8 +1,11 @@
-# Use Node.js LTS
-FROM node:18-alpine
+# Use Node.js LTS (Ubuntu-based for better compatibility)
+FROM node:18-slim
 
-# Install Stockfish
-RUN apk add --no-cache stockfish
+# Install Stockfish from Ubuntu repos
+RUN apt-get update && \
+    apt-get install -y stockfish && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
@@ -16,9 +19,9 @@ RUN npm ci --only=production
 # Copy source code
 COPY src/ ./src/
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Create non-root user (Debian/Ubuntu style)
+RUN groupadd -r nodejs && \
+    useradd -r -g nodejs nodejs
 
 # Set ownership
 RUN chown -R nodejs:nodejs /app

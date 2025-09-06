@@ -1,10 +1,17 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe only if key is provided (optional for CI/testing)
+const stripe = process.env.STRIPE_SECRET_KEY ? 
+  require('stripe')(process.env.STRIPE_SECRET_KEY) : 
+  null;
 const { supabase } = require('./supabase');
 
 /**
  * Create a Stripe Checkout session for Pro subscription
  */
 async function createCheckoutSession(userId, userEmail, billingCycle = 'monthly') {
+  if (!stripe) {
+    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+  }
+  
   try {
     const price = billingCycle === 'annual' ? 7.99 : 9.99;
     const interval = billingCycle === 'annual' ? 'year' : 'month';

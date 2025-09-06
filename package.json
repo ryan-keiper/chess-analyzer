@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "test": "jest --detectOpenHandles",
     "test:watch": "jest --watch --detectOpenHandles",
+    "test:coverage": "jest --coverage --coverageReporters=json --coverageReporters=lcov --coverageReporters=text",
     "docker:build": "docker build -t chess-analyzer .",
     "docker:run": "docker run -p 3000:3000 chess-analyzer"
   },

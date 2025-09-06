@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const AuthModal = ({ mode, onClose, onSwitchMode }) => {
   const [email, setEmail] = useState('');

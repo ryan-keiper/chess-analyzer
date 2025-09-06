@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Crown, Zap, Settings, LogOut, CreditCard, BarChart3 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const Header = ({ onNavigateToPage }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);

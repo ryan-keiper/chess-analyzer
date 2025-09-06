@@ -5,7 +5,7 @@ import {
   X, 
   ArrowLeft,
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { getUserTier } from '../services/supabase';
 
 const PricingPage = ({ onBack, onUpgrade }) => {

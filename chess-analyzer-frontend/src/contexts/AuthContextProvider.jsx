@@ -1,4 +1,5 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect } from 'react';
+import { AuthContext } from './authContext';
 import { supabase, USER_TIERS, fetchUserTier } from '../services/supabase';
 import { 
   getCachedTier, 
@@ -6,16 +7,6 @@ import {
   clearUserCache,
   validateTierFromDB 
 } from '../services/userCache';
-
-const AuthContext = createContext({});
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

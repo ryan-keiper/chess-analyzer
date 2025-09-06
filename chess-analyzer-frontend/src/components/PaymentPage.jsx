@@ -7,7 +7,7 @@ import {
   Shield,
   Loader2
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { redirectToCheckout } from '../services/stripe';
 
 const PaymentPage = ({ onBack, planDetails, billingCycle = 'monthly' }) => {

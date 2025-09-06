@@ -3,7 +3,7 @@ import Header from './Header';
 import ChessAnalyzer from './ChessAnalyzer';
 import LoadingSpinner from './LoadingSpinner';
 import { analyzeGame } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { canAnalyze, logUsage } from '../services/supabase';
 
 function Dashboard({ onNavigateToPage }) {

@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import LandingPage from './LandingPage';
 

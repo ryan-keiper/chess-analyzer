@@ -43,6 +43,9 @@ describe('Stripe Service', () => {
     process.env = { ...originalEnv };
     process.env.STRIPE_SECRET_KEY = 'sk_test_mock_key';
     process.env.FRONTEND_URL = 'https://test-frontend.com';
+    
+    // Clear the module cache to ensure stripe service re-initializes with the mock key
+    jest.resetModules();
 
     // Reset all mocks
     jest.clearAllMocks();

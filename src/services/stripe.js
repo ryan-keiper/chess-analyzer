@@ -64,12 +64,14 @@ async function createCheckoutSession(userId, userEmail, billingCycle = 'monthly'
  * Handle successful payment - upgrade user to Pro
  */
 async function handleSuccessfulPayment(sessionId) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+  }
+  
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['subscription']
     });
-    
-    console.log('Retrieved session:', session.id, 'Status:', session.payment_status);
     
     if (session.payment_status === 'paid') {
       const userId = session.metadata.userId;

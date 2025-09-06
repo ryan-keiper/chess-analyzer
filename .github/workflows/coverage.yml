@@ -28,15 +28,21 @@ jobs:
       run: npm ci
     
     - name: Run tests with coverage
-      run: npm run test:coverage
+      run: |
+        npm run test:ci -- --coverageReporters=json --coverageReporters=lcov --coverageReporters=text-summary
       env:
         NODE_ENV: test
         CI: true
+      timeout-minutes: 5
     
     - name: Generate coverage report
       run: |
         echo "## Backend Coverage Report"
-        npm test -- --coverage --coverageReporters=text-summary | tail -10
+        if [ -f coverage/coverage-summary.json ]; then
+          cat coverage/coverage-summary.json | jq '.total'
+        else
+          echo "No coverage report generated"
+        fi
     
     - name: Check coverage thresholds
       run: |

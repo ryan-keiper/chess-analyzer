@@ -273,7 +273,10 @@ class StockfishEngine {
   }
 
   cleanup() {
-    console.log('🧹 Cleaning up Stockfish engine...');
+    // Only log in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('🧹 Cleaning up Stockfish engine...');
+    }
     
     // Clear all active timeouts
     for (const timeoutId of this.timeouts) {
@@ -382,16 +385,18 @@ async function testStockfish() {
   }
 }
 
-// Cleanup on process exit
-process.on('exit', () => {
-  stockfishEngine.cleanup();
-});
+// Cleanup on process exit (only in production, not in tests)
+if (process.env.NODE_ENV !== 'test') {
+  process.on('exit', () => {
+    stockfishEngine.cleanup();
+  });
 
-process.on('SIGINT', () => {
-  console.log('🛑 Received SIGINT, cleaning up...');
-  stockfishEngine.cleanup();
-  process.exit(0);
-});
+  process.on('SIGINT', () => {
+    console.log('🛑 Received SIGINT, cleaning up...');
+    stockfishEngine.cleanup();
+    process.exit(0);
+  });
+}
 
 module.exports = {
   getStockfishEvaluation,

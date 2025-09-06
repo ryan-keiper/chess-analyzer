@@ -24,7 +24,7 @@ const PaymentSuccessPage = ({ onNavigateToPage }) => {
         const sessionId = urlParams.get('session_id');
         
         if (!sessionId) {
-          console.error('No session_id found in URL');
+          // This is an expected error if user navigates directly to success page
           setError('No payment session found');
           return;
         }

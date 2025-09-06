@@ -52,7 +52,7 @@ async function createCheckoutSession(userId, userEmail, billingCycle = 'monthly'
       allow_promotion_codes: true, // Allow discount codes
     });
 
-    console.log('Created Stripe checkout session:', session.id);
+    // Session created successfully
     return session;
   } catch (error) {
     console.error('Error creating checkout session:', error);

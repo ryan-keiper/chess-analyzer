@@ -1,4 +1,4 @@
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   console.error('Error:', err);
 
   // Default error
@@ -33,9 +33,9 @@ const errorHandler = (err, req, res, next) => {
 
   res.status(status).json({
     error: message,
-    ...(process.env.NODE_ENV === 'development' && { 
+    ...(process.env.NODE_ENV === 'development' && {
       stack: err.stack,
-      details: err.message 
+      details: err.message
     })
   });
 };

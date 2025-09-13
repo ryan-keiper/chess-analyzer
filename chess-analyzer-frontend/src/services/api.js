@@ -44,8 +44,8 @@ api.interceptors.response.use(
   }
 );
 
-export const analyzeGame = async (pgn, depth = 15) => {
-  return api.post('/api/chess/analyze', { pgn, depth });
+export const analyzeGame = async (pgn, depth = 15, includeAIContext = false) => {
+  return api.post('/api/chess/analyze', { pgn, depth, includeAIContext });
 };
 
 export const getEngineInfo = async () => {

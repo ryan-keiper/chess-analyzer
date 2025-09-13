@@ -5,6 +5,8 @@ import { Upload, Play, Settings } from 'lucide-react';
 import MoveAnalysisDisplay from './MoveAnalysisDisplay';
 import GameNavigation from './GameNavigation';
 import MoveList from './MoveList';
+import EvalBar from './EvalBar';
+import HeuristicsPanel from './HeuristicsPanel';
 
 const ChessAnalyzer = ({ onAnalyze, loading }) => {
   // Game state
@@ -24,6 +26,10 @@ const ChessAnalyzer = ({ onAnalyze, loading }) => {
   const [depth, setDepth] = useState(15);
   const [showSettings, setShowSettings] = useState(false);
   const [analysisText, setAnalysisText] = useState('Enter a chess game in PGN format to begin analysis. The board will become interactive once analysis is complete.');
+  const [includeAIContext] = useState(true); // Enable AI context by default for testing
+  const [currentAIContext, setCurrentAIContext] = useState(null);
+  const [currentEval, setCurrentEval] = useState(0);
+  const [currentHeuristics, setCurrentHeuristics] = useState({});
 
   const samplePgn = `[Event "Sample Game"]
 [Site "Chess.com"]
@@ -75,10 +81,119 @@ const ChessAnalyzer = ({ onAnalyze, loading }) => {
 
       return true;
     } catch (error) {
-      console.error('Error parsing PGN:', error);
       return false;
     }
   }, []);
+
+  // Extract heuristics from position and context
+  const extractHeuristics = (position, aiContext, analysis) => {
+    const heuristics = {};
+    
+    if (!position) return heuristics;
+    
+    // Game phase
+    const moveNumber = position.moveNumber;
+    const lastBookMove = analysis?.opening?.lastBookMove || 0;
+    if (moveNumber <= lastBookMove) {
+      heuristics.phase = 'opening';
+    } else if (moveNumber <= 25) {
+      heuristics.phase = 'middlegame';
+    } else {
+      heuristics.phase = 'endgame';
+    }
+    
+    // Move quality
+    heuristics.bookMove = position.classification === 'book';
+    heuristics.excellentMove = position.classification === 'excellent';
+    heuristics.goodMove = position.classification === 'good';
+    heuristics.inaccuracy = position.classification === 'inaccuracy';
+    heuristics.mistake = position.classification === 'mistake';
+    heuristics.blunder = position.classification === 'blunder';
+    
+    // Tactics
+    heuristics.capture = position.isCapture;
+    heuristics.check = position.isCheck;
+    heuristics.promotion = position.isPromotion;
+    
+    // From AI context if available
+    if (aiContext) {
+      // Key moment types
+      const momentType = aiContext.meta?.momentType;
+      heuristics.openingTransition = momentType === 'opening_transition';
+      heuristics.hiddenPlan = momentType === 'hidden_plan';
+      heuristics.pawnStructureChange = momentType === 'pawn_structure_change';
+      heuristics.criticalDecision = momentType === 'critical_decision';
+      heuristics.prophylactic = momentType === 'prophylactic';
+      heuristics.planSequence = momentType === 'plan_sequence';
+      
+      // Pawn structure
+      if (aiContext.pawnStructure) {
+        const ps = aiContext.pawnStructure;
+        heuristics.passedPawnWhite = ps.white?.passed?.length > 0;
+        heuristics.passedPawnBlack = ps.black?.passed?.length > 0;
+        heuristics.isolatedPawns = (ps.white?.isolated?.length > 0) || (ps.black?.isolated?.length > 0);
+        heuristics.doubledPawns = (ps.white?.doubled?.length > 0) || (ps.black?.doubled?.length > 0);
+        heuristics.backwardPawns = (ps.white?.backward?.length > 0) || (ps.black?.backward?.length > 0);
+        heuristics.pawnChain = (ps.white?.chains?.length > 0) || (ps.black?.chains?.length > 0);
+        heuristics.centerTension = ps.tension?.length > 0;
+      }
+      
+      // King safety
+      if (aiContext.kingSafety) {
+        const ks = aiContext.kingSafety;
+        heuristics.whiteKingCastled = ks.white?.castled;
+        heuristics.whiteKingExposed = ks.white?.pawnShield === 'compromised' || ks.white?.openFiles?.length > 0;
+        heuristics.blackKingCastled = ks.black?.castled;
+        heuristics.blackKingExposed = ks.black?.pawnShield === 'compromised' || ks.black?.openFiles?.length > 0;
+      }
+      
+      // Material
+      if (aiContext.material) {
+        heuristics.materialImbalance = Math.abs(aiContext.material.difference) > 1;
+      }
+      
+      // Strategic themes
+      if (aiContext.strategicThemes) {
+        const themes = aiContext.strategicThemes;
+        const spaceTheme = themes.find(t => t.theme === 'space_advantage');
+        if (spaceTheme) {
+          heuristics.whiteSpaceAdvantage = spaceTheme.side === 'white';
+          heuristics.blackSpaceAdvantage = spaceTheme.side === 'black';
+        }
+        
+        const majorityThemes = themes.filter(t => t.theme === 'pawn_majority');
+        majorityThemes.forEach(t => {
+          if (t.flank === 'queenside') heuristics.queensideMajority = true;
+          if (t.flank === 'kingside') heuristics.kingsideMajority = true;
+        });
+      }
+      
+      // Board control
+      if (aiContext.boardControl) {
+        const bc = aiContext.boardControl;
+        if (bc.centerControl) {
+          heuristics.whiteCenterControl = bc.centerControl.assessment === 'white_controls';
+          heuristics.blackCenterControl = bc.centerControl.assessment === 'black_controls';
+          heuristics.centerContested = bc.centerControl.assessment === 'contested';
+        }
+        heuristics.outpost = bc.outposts?.length > 0;
+        heuristics.weakSquare = bc.weakSquares?.length > 0;
+      }
+    }
+    
+    // Detect pawn breaks and piece trades
+    if (position.pieceType === 'p' && position.isCapture) {
+      heuristics.pawnBreak = true;
+    }
+    if (position.isCapture && ['q', 'r', 'b', 'n'].includes(position.pieceType)) {
+      heuristics.pieceTrade = true;
+    }
+    
+    // High complexity (simplified check)
+    heuristics.highComplexity = position.evalChange >= 100 && !position.classification === 'book';
+    
+    return heuristics;
+  };
 
   // Navigate to specific move
   const goToMove = useCallback((moveIndex) => {
@@ -86,6 +201,37 @@ const ChessAnalyzer = ({ onAnalyze, loading }) => {
       const positionIndex = moveIndex + 1; // positions array includes starting position at index 0
       setBoardPosition(gameState.positions[positionIndex]);
       setGameState(prev => ({ ...prev, currentMoveIndex: moveIndex }));
+      
+      // Check if this is a key moment and get AI context
+      let aiContext = null;
+      if (gameState.analysis?.keyMoments && gameState.analysis?.aiContexts) {
+        const keyMomentIndex = gameState.analysis.keyMoments.findIndex(moment => 
+          moment.moveIndex === moveIndex || 
+          (moment.moves && moment.moves.includes(moveIndex))
+        );
+        if (keyMomentIndex >= 0) {
+          aiContext = gameState.analysis.aiContexts[keyMomentIndex];
+        }
+      }
+      setCurrentAIContext(aiContext);
+      
+      // Update eval for eval bar
+      if (gameState.analysis?.positions && moveIndex >= 0) {
+        const position = gameState.analysis.positions[moveIndex];
+        setCurrentEval(position?.rawEval || position?.evaluation?.score || 0);
+      } else if (moveIndex === -1) {
+        // Starting position
+        setCurrentEval(0);
+      }
+      
+      // Extract and set heuristics
+      if (gameState.analysis?.positions && moveIndex >= 0) {
+        const position = gameState.analysis.positions[moveIndex];
+        const heuristics = extractHeuristics(position, aiContext, gameState.analysis);
+        setCurrentHeuristics(heuristics);
+      } else {
+        setCurrentHeuristics({});
+      }
       
       // Update analysis text based on move
       if (gameState.isAnalyzed && gameState.analysis) {
@@ -114,11 +260,15 @@ ${openingName}${eco ? ` (${eco})` : ''}
 This position appears in the opening book with ${gameState.analysis?.opening?.bookDepth || lastBookMove} moves of established theory.`);
           } else {
             // Post-opening phase - AI analysis
-            console.log(`Move ${moveIndex + 1} is OUT OF BOOK (lastBookMove: ${lastBookMove})`);
+            
+            // Check if this is a key moment
+            const isKeyMoment = aiContext !== null;
+            const keyMomentText = isKeyMoment ? '\n\n🔑 KEY MOMENT: This position has been identified for deep strategic analysis.' : '';
+            
             setAnalysisText(`Move ${moveNumber}: ${player} plays ${move.san}
 
 AI Strategic Analysis:
-This move takes the game beyond established opening theory. Advanced positional and tactical analysis would appear here, evaluating the strategic implications of this position.`);
+This move takes the game beyond established opening theory. Advanced positional and tactical analysis would appear here, evaluating the strategic implications of this position.${keyMomentText}`);
           }
         }
       }
@@ -181,13 +331,9 @@ This move takes the game beyond established opening theory. Advanced positional 
     setAnalysisText('Analyzing game... This may take a moment.');
     
     try {
-      // Call the parent's analyze function
-      const result = await onAnalyze(pgn, depth);
+      // Call the parent's analyze function with AI context flag
+      const result = await onAnalyze(pgn, depth, includeAIContext);
       
-      console.log('Analysis result:', result);
-      console.log('Opening data:', result.opening);
-      console.log('LastBookMove:', result.opening?.lastBookMove);
-      console.log('Book depth:', result.opening?.bookDepth);
       
       // Update with analysis results
       setGameState(prev => ({ 
@@ -216,6 +362,9 @@ This move takes the game beyond established opening theory. Advanced positional 
       pgn: ''
     });
     setAnalysisText('Enter a chess game in PGN format to begin analysis. The board will become interactive once analysis is complete.');
+    setCurrentEval(0); // Reset eval bar to neutral position
+    setCurrentAIContext(null); // Reset AI context
+    setCurrentHeuristics({}); // Reset heuristics
   };
 
   const loadSample = () => {
@@ -227,8 +376,15 @@ This move takes the game beyond established opening theory. Advanced positional 
   };
 
   return (
-    <div className="max-w-7xl mx-auto h-[calc(100vh-12rem)]">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+    <div className="max-w-full mx-auto h-[calc(100vh-12rem)] px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+        
+        {/* Heuristics Panel - Left side */}
+        <div className="hidden lg:block lg:col-span-1 h-full">
+          <div className="h-full flex flex-col max-h-full overflow-hidden">
+            <HeuristicsPanel heuristics={currentHeuristics} />
+          </div>
+        </div>
         
         {/* Chess Board - Takes up 2 columns on large screens */}
         <div className="lg:col-span-2">
@@ -240,16 +396,16 @@ This move takes the game beyond established opening theory. Advanced positional 
               }
             </h2>
             
-            {/* Chess Board and Move List Layout */}
-            <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0 justify-between">
+            {/* Chess Board, Eval Bar, and Move List Layout */}
+            <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0 justify-between">
               {/* Chess Board - expanded to fill available space */}
               <div className="flex-shrink-0 mx-auto md:mx-0">
                 <Chessboard
                   position={boardPosition}
                   boardOrientation={boardOrientation}
                   boardWidth={typeof window !== 'undefined' 
-                    ? Math.min(550, window.innerWidth * 0.4, window.innerHeight * 0.65)
-                    : 550
+                    ? Math.min(500, window.innerWidth * 0.35, window.innerHeight * 0.6)
+                    : 500
                   }
                   arePiecesDraggable={false} // Disable dragging - this is for analysis only
                   customBoardStyle={{
@@ -259,6 +415,22 @@ This move takes the game beyond established opening theory. Advanced positional 
                 />
               </div>
               
+              {/* Eval Bar - matches board height */}
+              {gameState.isAnalyzed && (
+                <div className="flex-shrink-0" style={{
+                  height: typeof window !== 'undefined' 
+                    ? Math.min(500, window.innerWidth * 0.35, window.innerHeight * 0.6)
+                    : 500
+                }}>
+                  <EvalBar 
+                    currentEval={currentEval}
+                    boardOrientation={boardOrientation}
+                    isMate={false} // TODO: detect mate positions
+                    mateIn={0}
+                  />
+                </div>
+              )}
+              
               {/* Move List - right-justified and matches board height */}
               <div className="w-full md:w-48 lg:w-52 md:ml-auto flex-shrink-0">
                 <MoveList
@@ -267,9 +439,10 @@ This move takes the game beyond established opening theory. Advanced positional 
                   onMoveClick={goToMove}
                   isAnalyzed={gameState.isAnalyzed}
                   boardHeight={typeof window !== 'undefined' 
-                    ? Math.min(550, window.innerWidth * 0.4, window.innerHeight * 0.65)
-                    : 550
+                    ? Math.min(500, window.innerWidth * 0.35, window.innerHeight * 0.6)
+                    : 500
                   }
+                  keyMoments={gameState.analysis?.keyMoments || []}
                 />
               </div>
             </div>
@@ -365,6 +538,8 @@ This move takes the game beyond established opening theory. Advanced positional 
                 isAnalyzed={gameState.isAnalyzed}
                 analysis={gameState.analysis}
                 currentMoveIndex={gameState.currentMoveIndex}
+                aiContext={currentAIContext}
+                currentEval={currentEval}
               />
             </div>
             

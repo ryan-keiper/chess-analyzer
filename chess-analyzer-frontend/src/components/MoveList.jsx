@@ -1,7 +1,7 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Key } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
-const MoveList = ({ moves, currentMoveIndex, onMoveClick, isAnalyzed, boardHeight = 450 }) => {
+const MoveList = ({ moves, currentMoveIndex, onMoveClick, isAnalyzed, boardHeight = 450, keyMoments = [] }) => {
   const scrollContainerRef = useRef(null);
   
   // Auto-scroll to current move
@@ -52,6 +52,15 @@ const MoveList = ({ moves, currentMoveIndex, onMoveClick, isAnalyzed, boardHeigh
     onMoveClick(moveIndex);
   };
 
+  // Check if a move is a key moment
+  const isKeyMoment = (moveIndex) => {
+    return keyMoments.some(moment => 
+      moment.moveIndex === moveIndex || 
+      (moment.moves && moment.moves.includes(moveIndex))
+    );
+  };
+
+
   return (
     <div 
       ref={scrollContainerRef} 
@@ -78,13 +87,20 @@ const MoveList = ({ moves, currentMoveIndex, onMoveClick, isAnalyzed, boardHeigh
                 <button
                   data-move-index={pair.white.index}
                   onClick={() => handleMoveClick(pair.white.index)}
-                  className={`px-2 py-1.5 rounded text-left font-mono hover:bg-blue-100 transition-all duration-150 w-full text-sm focus:outline-none ${
+                  className={`px-2 py-1.5 rounded text-left font-mono hover:bg-blue-100 transition-all duration-150 w-full text-sm focus:outline-none relative ${
                     currentMoveIndex === pair.white.index
                       ? 'bg-blue-500 text-white shadow-sm'
+                      : isKeyMoment(pair.white.index)
+                      ? 'text-purple-700 font-semibold hover:text-purple-800 hover:shadow-sm border border-purple-300'
                       : 'text-gray-800 hover:text-blue-700 hover:shadow-sm'
                   }`}
                 >
-                  {pair.white.move.san}
+                  <span className="flex items-center justify-between">
+                    <span>{pair.white.move.san}</span>
+                    {isKeyMoment(pair.white.index) && (
+                      <Key className="w-3 h-3 ml-1 text-purple-500" />
+                    )}
+                  </span>
                 </button>
               )}
             </div>
@@ -95,13 +111,20 @@ const MoveList = ({ moves, currentMoveIndex, onMoveClick, isAnalyzed, boardHeigh
                 <button
                   data-move-index={pair.black.index}
                   onClick={() => handleMoveClick(pair.black.index)}
-                  className={`px-2 py-1.5 rounded text-left font-mono hover:bg-blue-100 transition-all duration-150 w-full text-sm focus:outline-none ${
+                  className={`px-2 py-1.5 rounded text-left font-mono hover:bg-blue-100 transition-all duration-150 w-full text-sm focus:outline-none relative ${
                     currentMoveIndex === pair.black.index
                       ? 'bg-blue-500 text-white shadow-sm'
+                      : isKeyMoment(pair.black.index)
+                      ? 'text-purple-700 font-semibold hover:text-purple-800 hover:shadow-sm border border-purple-300'
                       : 'text-gray-800 hover:text-blue-700 hover:shadow-sm'
                   }`}
                 >
-                  {pair.black.move.san}
+                  <span className="flex items-center justify-between">
+                    <span>{pair.black.move.san}</span>
+                    {isKeyMoment(pair.black.index) && (
+                      <Key className="w-3 h-3 ml-1 text-purple-500" />
+                    )}
+                  </span>
                 </button>
               )}
             </div>

@@ -7,7 +7,7 @@ jest.mock('chess.js', () => {
     loadPgn: jest.fn(),
     history: jest.fn(() => [])
   };
-  
+
   return {
     Chess: jest.fn(() => mockChess)
   };
@@ -30,10 +30,10 @@ describe('Validation Middleware', () => {
     // Get the mocked Chess instance
     const { Chess } = require('chess.js');
     mockChess = new Chess();
-    
+
     // Reset all mocks
     jest.clearAllMocks();
-    
+
     // Mock console.log to avoid noise in tests
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -41,7 +41,7 @@ describe('Validation Middleware', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    
+
     // Ensure Chess constructor is always reset to return mockChess
     const { Chess } = require('chess.js');
     Chess.mockImplementation(() => mockChess);
@@ -571,7 +571,7 @@ describe('Validation Middleware', () => {
       // Ensure Chess constructor works normally
       const { Chess } = require('chess.js');
       Chess.mockImplementation(() => mockChess);
-      
+
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue(['f3', 'e5', 'g4', 'Qh4#']);
 
@@ -596,7 +596,7 @@ describe('Validation Middleware', () => {
       // Ensure Chess constructor works normally
       const { Chess } = require('chess.js');
       Chess.mockImplementation(() => mockChess);
-      
+
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue(['e4']);
 
@@ -612,29 +612,29 @@ describe('Validation Middleware', () => {
 
     test('should handle concurrent validation calls', async () => {
       const pgn = '[Event "Concurrent"]\n\n1. e4 e5 *';
-      
+
       // Ensure Chess constructor works normally
       const { Chess } = require('chess.js');
       Chess.mockImplementation(() => mockChess);
-      
+
       mockChess.loadPgn.mockImplementation(() => {});
       mockChess.history.mockReturnValue(['e4', 'e5']);
 
       const promises = Array(5).fill().map(async () => {
         const testReq = { body: { pgn, depth: 15 } };
-        
+
         // Run all validation middleware
         for (const middleware of validatePgn) {
           await middleware(testReq, res, next);
         }
-        
+
         // Check validation results
         const errors = validationResult(testReq);
         return errors.isEmpty();
       });
 
       const results = await Promise.all(promises);
-      
+
       // All should succeed (return true)
       results.forEach(result => {
         expect(result).toBe(true);

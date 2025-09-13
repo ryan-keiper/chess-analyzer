@@ -11,7 +11,7 @@ function Dashboard({ onNavigateToPage }) {
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
-  const handleAnalyze = async (pgn, depth) => {
+  const handleAnalyze = async (pgn, depth, includeAIContext = false) => {
     // Check if user can analyze
     const canUserAnalyze = await canAnalyze(user);
     if (!canUserAnalyze) {
@@ -23,7 +23,7 @@ function Dashboard({ onNavigateToPage }) {
     setError(null);
 
     try {
-      const result = await analyzeGame(pgn, depth);
+      const result = await analyzeGame(pgn, depth, includeAIContext);
       
       // Log usage
       await logUsage(user, 'analysis', { 

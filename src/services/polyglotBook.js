@@ -1,5 +1,4 @@
 const fs = require('fs');
-const crypto = require('crypto');
 const { Chess } = require('chess.js');
 const path = require('path');
 const { calculatePolyglotKey } = require('./polyglotZobrist');
@@ -36,13 +35,13 @@ class PolyglotBook {
       // Get file stats
       const stats = fs.statSync(this.bookPath);
       this.fileSize = stats.size;
-      
+
       // Open file for reading
       this.fileDescriptor = fs.openSync(this.bookPath, 'r');
-      
+
       const recordCount = Math.floor(this.fileSize / this.recordSize);
       console.log(`✅ Polyglot book initialized: ${recordCount} positions from ${this.bookPath}`);
-      
+
       this.isInitialized = true;
     } catch (error) {
       console.error('Failed to initialize Polyglot book:', error.message);
@@ -130,7 +129,7 @@ class PolyglotBook {
     while (left <= right) {
       const mid = Math.floor((left + right) / 2);
       const record = this.readRecord(mid * this.recordSize);
-      
+
       if (!record) break;
 
       if (record.key === targetKey) {
@@ -195,7 +194,7 @@ class PolyglotBook {
 
     // Cache the result
     this.cache.set(cacheKey, moves);
-    
+
     // Limit cache size
     if (this.cache.size > 1000) {
       const firstKey = this.cache.keys().next().value;
@@ -224,28 +223,28 @@ class PolyglotBook {
     }
 
     const game = new Chess();
-    
+
     try {
       if (typeof pgn === 'string') {
         game.loadPgn(pgn);
       }
-      
+
       const moves = game.history({ verbose: true });
       game.reset();
-      
+
       let lastBookIndex = -1;
-      
+
       for (let i = 0; i < moves.length; i++) {
         const currentFen = game.fen();
         const bookMoves = await this.getBookMoves(currentFen);
-        
+
         // Check if the played move is in the book moves
         const playedMove = moves[i];
         game.move(playedMove);
-        
+
         const playedUci = this.moveToUci(playedMove);
         const isBookMove = bookMoves.some(m => m.uci === playedUci);
-        
+
         if (isBookMove) {
           lastBookIndex = i;
         } else {
@@ -253,9 +252,9 @@ class PolyglotBook {
           break;
         }
       }
-      
+
       return lastBookIndex;
-      
+
     } catch (error) {
       console.error('Error finding last book move:', error.message);
       return -1;
@@ -276,7 +275,7 @@ class PolyglotBook {
   matchesBookMove(playedUci, bookUci) {
     // Direct match
     if (playedUci === bookUci) return true;
-    
+
     // Try reversed format (e2e4 vs e4e2)
     const reversed = playedUci.substring(2, 4) + playedUci.substring(0, 2) + (playedUci.substring(4) || '');
     return reversed === bookUci;
@@ -322,42 +321,42 @@ class PolyglotBook {
     }
 
     const game = new Chess();
-    
+
     try {
       if (typeof pgn === 'string') {
         game.loadPgn(pgn);
       }
-      
+
       const moves = game.history({ verbose: true });
       game.reset();
-      
+
       const segments = [];
       let currentState = 'OUT';
       let segmentStart = 0;
-      let lastKnownBookPly = -1; // Track last ply where we were in book
-      
+      // let lastKnownBookPly = -1; // Reserved for tracking deep book depth
+
       for (let i = 0; i < moves.length; i++) {
         const currentFen = game.fen();
-        const isWhiteTurn = game.turn() === 'w';
-        
+        // const isWhiteTurn = game.turn() === 'w'; // Reserved for color-specific analysis
+
         // Check book for both colors (book may have some Black positions too)
         let isInBook = false;
         const bookMoves = await this.getBookMoves(currentFen);
-        
+
         if (bookMoves.length > 0) {
           const playedMove = moves[i];
           const playedUci = this.moveToUci(playedMove);
-          
+
           // Check if played move is a book move with sufficient data
           const bookMove = bookMoves.find(m => m.uci === playedUci);
           if (bookMove && bookMove.count >= minCountThreshold) {
             isInBook = true;
-            lastKnownBookPly = i;
+            // lastKnownBookPly = i; // Track for future use
           }
         }
-        
+
         const newState = isInBook ? 'IN' : 'OUT';
-        
+
         // State transition detected
         if (newState !== currentState) {
           // Save the previous segment
@@ -369,15 +368,15 @@ class PolyglotBook {
               moveCount: i - segmentStart
             });
           }
-          
+
           // Start new segment
           currentState = newState;
           segmentStart = i;
         }
-        
+
         game.move(moves[i]);
       }
-      
+
       // Save the final segment
       if (moves.length > 0) {
         segments.push({
@@ -387,9 +386,9 @@ class PolyglotBook {
           moveCount: moves.length - segmentStart
         });
       }
-      
+
       return segments;
-      
+
     } catch (error) {
       console.error('Error finding book segments:', error.message);
       return [];

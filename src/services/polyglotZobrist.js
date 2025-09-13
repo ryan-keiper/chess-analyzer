@@ -242,19 +242,19 @@ function calculatePolyglotKey(fen) {
   const turn = parts[1];
   const castling = parts[2];
   const enPassant = parts[3];
-  
+
   let key = 0n;
-  
+
   // Process board position
   const rows = board.split('/');
   for (let row = 0; row < 8; row++) {
     let col = 0;
-    for (let char of rows[row]) {
+    for (const char of rows[row]) {
       if (char >= '1' && char <= '8') {
         // Empty squares
         col += parseInt(char);
       } else {
-        // Piece on square  
+        // Piece on square
         // Polyglot uses 0=a1, 1=b1, ..., 63=h8
         const square = (7 - row) * 8 + col;
         const pieceType = PIECE_TO_POLYGLOT[char];
@@ -266,13 +266,13 @@ function calculatePolyglotKey(fen) {
       }
     }
   }
-  
+
   // Castling rights
   if (castling.includes('K')) key ^= POLYGLOT_RANDOM[RANDOM_CASTLE + 0]; // White kingside
   if (castling.includes('Q')) key ^= POLYGLOT_RANDOM[RANDOM_CASTLE + 1]; // White queenside
   if (castling.includes('k')) key ^= POLYGLOT_RANDOM[RANDOM_CASTLE + 2]; // Black kingside
   if (castling.includes('q')) key ^= POLYGLOT_RANDOM[RANDOM_CASTLE + 3]; // Black queenside
-  
+
   // En passant
   if (enPassant !== '-') {
     const file = enPassant.charCodeAt(0) - 'a'.charCodeAt(0);
@@ -285,12 +285,12 @@ function calculatePolyglotKey(fen) {
       key ^= POLYGLOT_RANDOM[RANDOM_ENPASSANT + file];
     }
   }
-  
+
   // Side to move (XOR if white to move)
   if (turn === 'w') {
     key ^= POLYGLOT_RANDOM[RANDOM_TURN];
   }
-  
+
   return key;
 }
 

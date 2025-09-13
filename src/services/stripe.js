@@ -1,6 +1,6 @@
 // Initialize Stripe only if key is provided (optional for CI/testing)
-const stripe = process.env.STRIPE_SECRET_KEY ? 
-  require('stripe')(process.env.STRIPE_SECRET_KEY) : 
+const stripe = process.env.STRIPE_SECRET_KEY ?
+  require('stripe')(process.env.STRIPE_SECRET_KEY) :
   null;
 const { supabase } = require('./supabase');
 
@@ -11,11 +11,11 @@ async function createCheckoutSession(userId, userEmail, billingCycle = 'monthly'
   if (!stripe) {
     throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
   }
-  
+
   try {
     const price = billingCycle === 'annual' ? 7.99 : 9.99;
     const interval = billingCycle === 'annual' ? 'year' : 'month';
-    
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -25,15 +25,15 @@ async function createCheckoutSession(userId, userEmail, billingCycle = 'monthly'
             product_data: {
               name: 'Chess Analyzer Pro',
               description: 'Unlimited chess analysis with AI-powered explanations',
-              images: ['https://your-app-url.com/logo.png'], // Add your logo URL later
+              images: ['https://your-app-url.com/logo.png'] // Add your logo URL later
             },
             unit_amount: Math.round(price * 100), // Convert to cents
             recurring: {
-              interval: interval,
-            },
+              interval: interval
+            }
           },
-          quantity: 1,
-        },
+          quantity: 1
+        }
       ],
       mode: 'subscription',
       success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -41,15 +41,15 @@ async function createCheckoutSession(userId, userEmail, billingCycle = 'monthly'
       customer_email: userEmail,
       metadata: {
         userId: userId,
-        tier: 'PRO',
+        tier: 'PRO'
       },
       subscription_data: {
         metadata: {
-          userId: userId,
-        },
+          userId: userId
+        }
       },
       billing_address_collection: 'required',
-      allow_promotion_codes: true, // Allow discount codes
+      allow_promotion_codes: true // Allow discount codes
     });
 
     // Session created successfully
@@ -67,22 +67,22 @@ async function handleSuccessfulPayment(sessionId) {
   if (!stripe) {
     throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
   }
-  
+
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['subscription']
     });
-    
+
     if (session.payment_status === 'paid') {
       const userId = session.metadata.userId;
       const subscription = session.subscription;
-      
+
       // Calculate subscription end date
       let subscriptionExpiresAt = null;
       if (subscription && subscription.current_period_end) {
         subscriptionExpiresAt = new Date(subscription.current_period_end * 1000).toISOString();
       }
-      
+
       // Update user tier in database
       const { error } = await supabase
         .from('user_profiles')
@@ -100,7 +100,7 @@ async function handleSuccessfulPayment(sessionId) {
       }
 
       console.log(`User ${userId} upgraded to Pro successfully`);
-      
+
       // Log the upgrade
       await logUpgrade(userId, {
         sessionId: session.id,
@@ -108,12 +108,12 @@ async function handleSuccessfulPayment(sessionId) {
         amount: session.amount_total,
         interval: subscription?.items?.data[0]?.price?.recurring?.interval
       });
-      
-      return { 
-        success: true, 
-        userId, 
+
+      return {
+        success: true,
+        userId,
         subscriptionId: subscription?.id,
-        expiresAt: subscriptionExpiresAt 
+        expiresAt: subscriptionExpiresAt
       };
     } else {
       throw new Error('Payment not completed');
@@ -132,7 +132,7 @@ async function getCustomerSubscription(customerId) {
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: 'active',
-      limit: 1,
+      limit: 1
     });
 
     return subscriptions.data[0] || null;
@@ -148,7 +148,7 @@ async function getCustomerSubscription(customerId) {
 async function cancelSubscription(subscriptionId) {
   try {
     const subscription = await stripe.subscriptions.update(subscriptionId, {
-      cancel_at_period_end: true,
+      cancel_at_period_end: true
     });
 
     console.log('Subscription set to cancel at period end:', subscriptionId);
@@ -166,7 +166,7 @@ async function createPortalSession(customerId, returnUrl) {
   try {
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: returnUrl,
+      return_url: returnUrl
     });
 
     return session;
@@ -189,7 +189,7 @@ async function logUpgrade(userId, metadata) {
         metadata: metadata,
         created_at: new Date().toISOString()
       });
-      
+
     if (error) {
       console.error('Error logging upgrade:', error);
     }

@@ -101,23 +101,23 @@ describe('Stockfish Service', () => {
       test('should not reinitialize if already ready', async () => {
         stockfishEngine.isReady = true;
         const { spawn } = require('child_process');
-        
+
         await stockfishEngine.initialize();
-        
+
         expect(spawn).not.toHaveBeenCalled();
       });
 
       test('should handle process close events', async () => {
         let closeHandler;
         let dataHandler;
-        
+
         // Setup event handlers
         mockProcess.on.mockImplementation((event, handler) => {
           if (event === 'close') {
             closeHandler = handler;
           }
         });
-        
+
         mockStdout.on.mockImplementation((event, handler) => {
           if (event === 'data') {
             dataHandler = handler;
@@ -126,7 +126,7 @@ describe('Stockfish Service', () => {
 
         // Initialize engine to set up handlers
         const initPromise = stockfishEngine.initialize();
-        
+
         // Simulate UCI responses
         setTimeout(() => {
           if (dataHandler) {
@@ -134,7 +134,7 @@ describe('Stockfish Service', () => {
             dataHandler('readyok\n');
           }
         }, 10);
-        
+
         await initPromise;
 
         // Now simulate process close
@@ -148,14 +148,14 @@ describe('Stockfish Service', () => {
       test('should handle process error events', async () => {
         let errorHandler;
         let dataHandler;
-        
+
         // Setup event handlers
         mockProcess.on.mockImplementation((event, handler) => {
           if (event === 'error') {
             errorHandler = handler;
           }
         });
-        
+
         mockStdout.on.mockImplementation((event, handler) => {
           if (event === 'data') {
             dataHandler = handler;
@@ -164,7 +164,7 @@ describe('Stockfish Service', () => {
 
         // Initialize engine to set up handlers
         const initPromise = stockfishEngine.initialize();
-        
+
         // Simulate UCI responses
         setTimeout(() => {
           if (dataHandler) {
@@ -172,7 +172,7 @@ describe('Stockfish Service', () => {
             dataHandler('readyok\n');
           }
         }, 10);
-        
+
         await initPromise;
 
         // Now simulate process error
@@ -195,12 +195,12 @@ describe('Stockfish Service', () => {
 
       test('should handle isready command specially', async () => {
         stockfishEngine.engine = mockProcess;
-        
+
         const commandPromise = stockfishEngine.sendCommand('isready');
-        
+
         // Simulate readyok response
         stockfishEngine.resolveReady();
-        
+
         await commandPromise;
         expect(mockStdin.write).toHaveBeenCalledWith('isready\n');
       });
@@ -219,7 +219,7 @@ describe('Stockfish Service', () => {
     describe('Analysis Parsing', () => {
       test('should parse info depth lines correctly', () => {
         const infoLine = 'info depth 15 seldepth 20 multipv 1 score cp 25 nodes 50000 nps 2500000 time 20 pv e2e4 e7e5';
-        
+
         const mockResolve = jest.fn();
         stockfishEngine.currentFen = 'test_fen';
         stockfishEngine.pendingAnalysis.set('test_fen', {
@@ -240,7 +240,7 @@ describe('Stockfish Service', () => {
 
       test('should parse mate scores correctly', () => {
         const mateInTwoLine = 'info depth 10 score mate 2 pv e1g1 e8g8';
-        
+
         const mockResolve = jest.fn();
         stockfishEngine.currentFen = 'test_fen';
         stockfishEngine.pendingAnalysis.set('test_fen', {
@@ -260,7 +260,7 @@ describe('Stockfish Service', () => {
 
       test('should handle negative mate scores', () => {
         const mateAgainstLine = 'info depth 12 score mate -3 pv f1e2';
-        
+
         const mockResolve = jest.fn();
         stockfishEngine.currentFen = 'test_fen';
         stockfishEngine.pendingAnalysis.set('test_fen', {
@@ -327,7 +327,7 @@ describe('Stockfish Service', () => {
     describe('Engine Output Processing', () => {
       test('should process multiple lines of output', () => {
         const multiLineOutput = 'uciok\ninfo depth 5 score cp 10\nreadyok\nbestmove e2e4\n';
-        
+
         const spyParseAnalysis = jest.spyOn(stockfishEngine, 'parseAnalysis');
         const spyHandleBestMove = jest.spyOn(stockfishEngine, 'handleBestMove');
         const spyResolveReady = jest.spyOn(stockfishEngine, 'resolveReady');
@@ -341,11 +341,11 @@ describe('Stockfish Service', () => {
 
       test('should filter empty lines', () => {
         const outputWithEmptyLines = 'uciok\n\n\nreadyok\n\n';
-        
+
         const spyResolveReady = jest.spyOn(stockfishEngine, 'resolveReady');
-        
+
         stockfishEngine.handleEngineOutput(outputWithEmptyLines);
-        
+
         expect(spyResolveReady).toHaveBeenCalledTimes(1);
       });
     });
@@ -353,7 +353,7 @@ describe('Stockfish Service', () => {
     describe('Position Analysis', () => {
       test('should analyze position successfully', async () => {
         const testFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-        
+
         // Mock engine as ready
         stockfishEngine.isReady = true;
         stockfishEngine.engine = mockProcess;
@@ -405,7 +405,7 @@ describe('Stockfish Service', () => {
 
         // Mock setTimeout to immediately call the timeout callback
         const originalSetTimeout = global.setTimeout;
-        global.setTimeout = jest.fn((callback, timeout) => {
+        global.setTimeout = jest.fn((callback, _timeout) => {
           // Immediately call the timeout callback to simulate timeout
           callback();
           return 123; // Mock timeout ID
@@ -469,7 +469,7 @@ describe('Stockfish Service', () => {
         // Mock setTimeout to capture timeout value and complete quickly
         const originalSetTimeout = global.setTimeout;
         let capturedTimeout;
-        global.setTimeout = jest.fn((callback, timeout) => {
+        global.setTimeout = jest.fn((_callback, timeout) => {
           capturedTimeout = timeout;
           // Complete immediately without waiting
           const id = originalSetTimeout(() => {
@@ -574,13 +574,13 @@ describe('Stockfish Service', () => {
       Math.random = jest.fn(() => 0.5);
 
       const testFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-      
+
       return getStockfishEvaluation(testFen).then(result1 => {
         return getStockfishEvaluation(testFen).then(result2 => {
           expect(result1.score).toBe(result2.score);
           expect(result1.depth).toBe(15);
           expect(result1.bestLine).toBe('e2e4 e7e5 g1f3');
-          
+
           Math.random = originalRandom;
         });
       });
@@ -619,7 +619,7 @@ describe('Stockfish Service', () => {
 
       spyInitialize.mockRejectedValue(new Error('Test failure'));
 
-      await testStockfish();
+      await expect(testStockfish()).rejects.toThrow('Test failure');
 
       expect(console.error).toHaveBeenCalledWith('❌ Test failed:', expect.any(Error));
       expect(spyCleanup).toHaveBeenCalled();
@@ -638,14 +638,14 @@ describe('Stockfish Service', () => {
     test('should handle stderr output', async () => {
       let stderrHandler;
       let dataHandler;
-      
+
       // Setup stderr handler
       mockStderr.on.mockImplementation((event, handler) => {
         if (event === 'data') {
           stderrHandler = handler;
         }
       });
-      
+
       // Setup stdout handler for initialization
       mockStdout.on.mockImplementation((event, handler) => {
         if (event === 'data') {
@@ -655,7 +655,7 @@ describe('Stockfish Service', () => {
 
       // Initialize to trigger event handler setup
       const initPromise = stockfishEngine.initialize();
-      
+
       // Simulate UCI responses to complete initialization
       setTimeout(() => {
         if (dataHandler) {
@@ -663,7 +663,7 @@ describe('Stockfish Service', () => {
           dataHandler('readyok\n');
         }
       }, 10);
-      
+
       await initPromise;
 
       // Now simulate stderr output
@@ -684,7 +684,7 @@ describe('Stockfish Service', () => {
 
     test('should handle missing score in info line', () => {
       const infoWithoutScore = 'info depth 10 nodes 1000 time 50';
-      
+
       stockfishEngine.currentFen = 'test_fen';
       stockfishEngine.pendingAnalysis.set('test_fen', {
         resolve: jest.fn(),

@@ -12,10 +12,10 @@ describe('Supabase Service', () => {
   beforeEach(() => {
     // Clear require cache first
     jest.resetModules();
-    
+
     // Reset environment
     process.env = { ...originalEnv };
-    
+
     // Create mock Supabase client
     mockSupabaseClient = {
       from: jest.fn(() => ({
@@ -33,14 +33,14 @@ describe('Supabase Service', () => {
         from: jest.fn()
       }
     };
-    
+
     // Get the mocked createClient function and set it up
     const { createClient } = require('@supabase/supabase-js');
     mockCreateClient = createClient;
-    
+
     // Reset all mocks
     jest.clearAllMocks();
-    
+
     // Set up the mock to return our client
     mockCreateClient.mockReturnValue(mockSupabaseClient);
   });
@@ -59,6 +59,7 @@ describe('Supabase Service', () => {
 
       // Import the module after setting env vars
       const { supabase } = require('../services/supabase');
+      expect(supabase).toBeDefined();
 
       expect(mockCreateClient).toHaveBeenCalledWith(
         'https://test.supabase.co',
@@ -154,12 +155,13 @@ describe('Supabase Service', () => {
         // Get fresh reference to the mock after resetModules
         const { createClient } = require('@supabase/supabase-js');
         const freshMockCreateClient = createClient;
-        
+
         const mockClient = { from: jest.fn() };
         freshMockCreateClient.mockReturnValue(mockClient);
 
         const { supabase } = require('../services/supabase');
 
+        expect(supabase).toBeDefined();
         expect(freshMockCreateClient).toHaveBeenCalledWith(url, 'test_key');
       });
     });
@@ -179,11 +181,12 @@ describe('Supabase Service', () => {
         // Get fresh reference to the mock after resetModules
         const { createClient } = require('@supabase/supabase-js');
         const freshMockCreateClient = createClient;
-        
+
         const mockClient = { from: jest.fn() };
         freshMockCreateClient.mockReturnValue(mockClient);
 
         const { supabase } = require('../services/supabase');
+        expect(supabase).toBeDefined();
 
         expect(freshMockCreateClient).toHaveBeenCalledWith('https://test.supabase.co', key);
       });
@@ -195,7 +198,7 @@ describe('Supabase Service', () => {
       process.env.SUPABASE_URL = 'https://test.supabase.co';
       process.env.SUPABASE_SERVICE_ROLE_KEY = 'test_service_key';
 
-      const mockClient = { 
+      const mockClient = {
         from: jest.fn(),
         auth: jest.fn(),
         storage: jest.fn(),
@@ -232,13 +235,13 @@ describe('Supabase Service', () => {
       const mockGetUser = jest.fn();
       const mockAuth = { getUser: mockGetUser };
       const mockRpc = jest.fn();
-      
-      const mockClient = { 
+
+      const mockClient = {
         from: mockFrom,
         auth: mockAuth,
         rpc: mockRpc
       };
-      
+
       mockCreateClient.mockReturnValue(mockClient);
 
       const { supabase } = require('../services/supabase');
@@ -266,7 +269,7 @@ describe('Supabase Service', () => {
       const mockSelect = jest.fn(() => ({ eq: mockEq }));
       const mockEq = jest.fn(() => ({ data: [], error: null }));
       const mockFrom = jest.fn(() => ({ select: mockSelect }));
-      
+
       const mockClient = { from: mockFrom };
       mockCreateClient.mockReturnValue(mockClient);
 
@@ -274,6 +277,7 @@ describe('Supabase Service', () => {
 
       // Test method chaining
       const result = supabase.from('users').select('*').eq('id', 123);
+      expect(result).toBeDefined();
 
       expect(mockFrom).toHaveBeenCalledWith('users');
       expect(mockSelect).toHaveBeenCalledWith('*');
@@ -340,6 +344,7 @@ describe('Supabase Service', () => {
       mockCreateClient.mockReturnValue(mockClient);
 
       const { supabase } = require('../services/supabase');
+      expect(supabase).toBeDefined();
 
       expect(mockCreateClient).toHaveBeenCalledWith(
         'https://dev-project.supabase.co',
@@ -356,6 +361,7 @@ describe('Supabase Service', () => {
       mockCreateClient.mockReturnValue(mockClient);
 
       const { supabase } = require('../services/supabase');
+      expect(supabase).toBeDefined();
 
       expect(mockCreateClient).toHaveBeenCalledWith(
         'https://prod-project.supabase.co',
@@ -372,6 +378,7 @@ describe('Supabase Service', () => {
       mockCreateClient.mockReturnValue(mockClient);
 
       const { supabase } = require('../services/supabase');
+      expect(supabase).toBeDefined();
 
       expect(mockCreateClient).toHaveBeenCalledWith(
         'https://test-project.supabase.co',
@@ -401,19 +408,19 @@ describe('Supabase Service', () => {
 
       const mockClient1 = { from: jest.fn() };
       const mockClient2 = { from: jest.fn() };
-      
+
       mockCreateClient.mockReturnValue(mockClient1);
 
       const { supabase: supabase1 } = require('../services/supabase');
-      
+
       // Clear module cache and require again
       jest.resetModules();
-      
+
       // Get fresh reference to the mock after resetModules
       const { createClient } = require('@supabase/supabase-js');
       const freshMockCreateClient = createClient;
       freshMockCreateClient.mockReturnValue(mockClient2);
-      
+
       const { supabase: supabase2 } = require('../services/supabase');
 
       expect(supabase1).toBe(mockClient1);
@@ -434,14 +441,14 @@ describe('Supabase Service', () => {
       const mockUpdate = jest.fn(() => ({ eq: mockEq }));
       const mockDelete = jest.fn(() => ({ eq: mockEq }));
       const mockEq = jest.fn(() => ({ data: null, error: null }));
-      
+
       const mockFrom = jest.fn(() => ({
         insert: mockInsert,
         select: mockSelect,
         update: mockUpdate,
         delete: mockDelete
       }));
-      
+
       const mockClient = { from: mockFrom };
       mockCreateClient.mockReturnValue(mockClient);
 
@@ -484,7 +491,7 @@ describe('Supabase Service', () => {
       const mockSignOut = jest.fn(() => ({ error: null }));
       const mockAuth = { getUser: mockGetUser, signOut: mockSignOut };
       const mockClient = { auth: mockAuth };
-      
+
       mockCreateClient.mockReturnValue(mockClient);
 
       const { supabase } = require('../services/supabase');
@@ -506,6 +513,7 @@ describe('Supabase Service', () => {
       mockCreateClient.mockReturnValue(mockClient);
 
       const { supabase } = require('../services/supabase');
+      expect(supabase).toBeDefined();
 
       // Should pass the values as-is (with whitespace)
       expect(mockCreateClient).toHaveBeenCalledWith(

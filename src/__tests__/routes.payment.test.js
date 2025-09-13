@@ -23,15 +23,15 @@ describe('Payment Routes', () => {
     app = express();
     app.use(express.json());
     app.use('/api/payment', paymentRoutes);
-    
+
     // Add error handler
-    app.use((error, req, res, next) => {
+    app.use((error, _req, res, _next) => {
       res.status(500).json({ error: error.message });
     });
 
     // Get mocked functions
     mockStripeService = require('../services/stripe');
-    
+
     // Reset all mocks
     jest.clearAllMocks();
   });
@@ -101,6 +101,7 @@ describe('Payment Routes', () => {
         .send(annualRequest)
         .expect(200);
 
+      expect(response.body.url).toBe('https://checkout.stripe.com/test_session');
       expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
         'user_123',
         'test@example.com',
@@ -369,8 +370,8 @@ describe('Payment Routes', () => {
       app = express();
       app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
       app.use('/api/payment', paymentRoutes);
-      
-      app.use((error, req, res, next) => {
+
+      app.use((error, _req, res, _next) => {
         res.status(500).json({ error: error.message });
       });
     });
@@ -524,7 +525,7 @@ describe('Payment Routes', () => {
 
       // Mock console.log to throw an error when logging payment success
       const originalConsoleLog = console.log;
-      console.log = jest.fn((message, ...args) => {
+      console.log = jest.fn((message, ..._args) => {
         if (message === 'Payment succeeded:') {
           throw new Error('Processing error');
         }
@@ -579,6 +580,7 @@ describe('Payment Routes', () => {
         .send(Buffer.from(mockWebhookPayload))
         .expect(200);
 
+      expect(response.body.received).toBe(true);
       expect(mockStripeService.stripe.webhooks.constructEvent).toHaveBeenCalledWith(
         expect.any(Buffer),
         'test_signature',
@@ -599,6 +601,7 @@ describe('Payment Routes', () => {
         .send('invalid json')
         .expect(400);
 
+      expect(response.body.error).toBeDefined();
       expect(mockStripeService.createCheckoutSession).not.toHaveBeenCalled();
     });
 
@@ -616,6 +619,7 @@ describe('Payment Routes', () => {
         })
         .expect(200);
 
+      expect(response.body.url).toBeDefined();
       expect(mockStripeService.createPortalSession).toHaveBeenCalledWith(
         longCustomerId,
         'https://example.com/account'

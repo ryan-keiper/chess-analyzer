@@ -1,6 +1,6 @@
 import { BookOpen, Brain, Eye } from 'lucide-react';
 
-const MoveAnalysisDisplay = ({ text, currentMove, isAnalyzed, analysis, currentMoveIndex }) => {
+const MoveAnalysisDisplay = ({ text, currentMove, isAnalyzed, analysis, currentMoveIndex, currentEval }) => {
   // Determine if current move is in opening based on actual lastBookMove
   const lastBookMove = analysis?.opening?.lastBookMove || 0;
   // Convert half-move index to chess move number for comparison
@@ -73,6 +73,18 @@ const MoveAnalysisDisplay = ({ text, currentMove, isAnalyzed, analysis, currentM
         <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm">
           {text}
         </div>
+        
+        {/* Display current evaluation for debugging */}
+        {isAnalyzed && currentMoveIndex >= 0 && (
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-300">
+            <div className="text-lg font-semibold text-gray-700">
+              Current Eval: {currentEval > 0 ? '+' : ''}{(currentEval / 100).toFixed(2)}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              (Centipawns: {currentEval})
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Phase indicator at bottom */}

@@ -1,6 +1,5 @@
 const express = require('express');
-const { body, validationResult } = require('express-validator');
-const { Chess } = require('chess.js');
+const { validationResult } = require('express-validator');
 
 // REVERTED: Back to original analyzer
 const { analyzeGame } = require('../services/chessAnalyzer');
@@ -9,7 +8,7 @@ const { validatePgn } = require('../middleware/validation');
 const router = express.Router();
 
 // Analyze a chess game from PGN
-router.post('/analyze', 
+router.post('/analyze',
   validatePgn,
   async (req, res, next) => {
     try {
@@ -21,13 +20,16 @@ router.post('/analyze',
         });
       }
 
-      const { pgn, depth = 15 } = req.body;
-      
+      const { pgn, depth = 15, includeAIContext = false } = req.body;
+
       console.log('Analyzing game with original analyzer...');
-      
-      // REVERTED: Use original analyzeGame function
-      const analysis = await analyzeGame(pgn, depth);
-      
+      if (includeAIContext) {
+        console.log('AI context requested - will detect key moments');
+      }
+
+      // REVERTED: Use original analyzeGame function with AI context support
+      const analysis = await analyzeGame(pgn, depth, includeAIContext);
+
       res.json({
         success: true,
         analysis,
@@ -37,7 +39,9 @@ router.post('/analyze',
           movesAnalyzed: analysis.positions.length,
           bookMoves: analysis.summary.bookMoves || 0,
           strategicMoves: analysis.positions.length - (analysis.summary.bookMoves || 0),
-          analysisType: 'original'
+          analysisType: 'original',
+          keyMomentsFound: analysis.keyMoments ? analysis.keyMoments.length : 0,
+          aiContextsBuilt: analysis.aiContexts ? analysis.aiContexts.length : 0
         }
       });
 

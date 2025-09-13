@@ -22,7 +22,7 @@ jest.mock('express-validator', () => {
       isInt: jest.fn().mockReturnThis(),
       toInt: jest.fn().mockReturnThis()
     })),
-    validationResult: jest.fn((req) => {
+    validationResult: jest.fn((_req) => {
       // Default to no errors
       return {
         isEmpty: () => true,
@@ -80,7 +80,7 @@ describe('Chess Routes', () => {
       },
       {
         moveNumber: 1,
-        color: 'b', 
+        color: 'b',
         move: 'e5',
         classification: 'book',
         opening: { inBook: true }
@@ -135,9 +135,9 @@ describe('Chess Routes', () => {
     app = express();
     app.use(express.json());
     app.use('/api/chess', chessRoutes);
-    
+
     // Add error handler
-    app.use((error, req, res, next) => {
+    app.use((error, _req, res, _next) => {
       res.status(500).json({ error: error.message });
     });
 
@@ -146,10 +146,10 @@ describe('Chess Routes', () => {
     const { validationResult } = require('express-validator');
     mockAnalyzeGame = analyzeGame;
     mockValidationResult = validationResult;
-    
+
     // Reset all mocks
     jest.clearAllMocks();
-    
+
     // Reset validation to default (no errors)
     mockValidationResult.mockReturnValue({
       isEmpty: () => true,
@@ -171,7 +171,7 @@ describe('Chess Routes', () => {
       expect(response.body.analysis).toBeDefined();
       expect(response.body.analysis.gameInfo.white).toBe('Player1');
       expect(response.body.analysis.gameInfo.black).toBe('Player2');
-      
+
       expect(response.body.metadata).toBeDefined();
       expect(response.body.metadata.depth).toBe(15);
       expect(response.body.metadata.movesAnalyzed).toBe(3);
@@ -180,7 +180,7 @@ describe('Chess Routes', () => {
       expect(response.body.metadata.analysisType).toBe('original');
       expect(response.body.metadata.analyzedAt).toBeDefined();
 
-      expect(mockAnalyzeGame).toHaveBeenCalledWith(validPgn, 15);
+      expect(mockAnalyzeGame).toHaveBeenCalledWith(validPgn, 15, false);
     });
 
     test('should use default depth when not provided', async () => {
@@ -193,7 +193,7 @@ describe('Chess Routes', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.metadata.depth).toBe(15); // Default depth
-      expect(mockAnalyzeGame).toHaveBeenCalledWith(validPgn, 15);
+      expect(mockAnalyzeGame).toHaveBeenCalledWith(validPgn, 15, false);
     });
 
     test('should handle custom depth parameter', async () => {
@@ -205,7 +205,7 @@ describe('Chess Routes', () => {
         .expect(200);
 
       expect(response.body.metadata.depth).toBe(20);
-      expect(mockAnalyzeGame).toHaveBeenCalledWith(validPgn, 20);
+      expect(mockAnalyzeGame).toHaveBeenCalledWith(validPgn, 20, false);
     });
 
     test('should handle analysis with no book moves', async () => {
@@ -264,6 +264,9 @@ describe('Chess Routes', () => {
         .send('{invalid json')
         .expect(500);
 
+      expect(response.body).toBeDefined();
+      expect(response.body.error).toBeDefined();
+      expect(response.status).toBe(500);
       expect(mockAnalyzeGame).not.toHaveBeenCalled();
     });
 
@@ -359,10 +362,10 @@ describe('Chess Routes', () => {
 
     test('should handle engine info errors', async () => {
       // Mock the route to throw an error
-      const originalRoute = chessRoutes.stack.find(layer => 
+      const originalRoute = chessRoutes.stack.find(layer =>
         layer.route && layer.route.path === '/engine-info'
       );
-      
+
       if (originalRoute) {
         const originalHandler = originalRoute.route.stack[0].handle;
         originalRoute.route.stack[0].handle = async (req, res, next) => {
@@ -401,7 +404,7 @@ describe('Chess Routes', () => {
   describe('Edge Cases', () => {
     test('should handle analysis timeout', async () => {
       // Mock a long-running analysis
-      mockAnalyzeGame.mockImplementation(() => 
+      mockAnalyzeGame.mockImplementation(() =>
         new Promise((resolve) => setTimeout(resolve, 100))
           .then(() => mockAnalysisResult)
       );
@@ -442,17 +445,28 @@ describe('Chess Routes', () => {
         .send({ pgn: validPgn, depth: -5 })
         .expect(200); // Should still work, analyzer will handle it
 
+      expect(response1.body).toBeDefined();
+      expect(response1.body.analysis).toBeDefined();
+      expect(mockAnalyzeGame).toHaveBeenCalledWith(validPgn, -5, false);
+
       // Test very large depth
       const response2 = await request(app)
         .post('/api/chess/analyze')
         .send({ pgn: validPgn, depth: 999 })
         .expect(200);
 
+      expect(response2.body).toBeDefined();
+      expect(response2.body.analysis).toBeDefined();
+      expect(mockAnalyzeGame).toHaveBeenCalledWith(validPgn, 999, false);
+
       // Test non-numeric depth
       const response3 = await request(app)
         .post('/api/chess/analyze')
         .send({ pgn: validPgn, depth: 'invalid' })
         .expect(200); // Will use default
+
+      expect(response3.body).toBeDefined();
+      expect(response3.body.analysis).toBeDefined();
 
       expect(mockAnalyzeGame).toHaveBeenCalledTimes(3);
     });

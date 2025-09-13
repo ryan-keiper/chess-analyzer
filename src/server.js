@@ -15,8 +15,8 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourfrontend.com'] 
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://yourfrontend.com']
     : ['http://localhost:3000', 'http://localhost:5173']
 }));
 
@@ -33,8 +33,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0'
   });
@@ -61,7 +61,7 @@ process.on('SIGTERM', () => {
 async function startServer() {
   // Initialize ECO classifier
   await initializeECOClassifier();
-  
+
   app.listen(PORT, () => {
     console.log(`Chess Analyzer API running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

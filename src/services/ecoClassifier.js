@@ -16,27 +16,27 @@ class ECOClassifier {
 
   async loadDatabase() {
     if (this.isLoaded) return;
-    
+
     try {
       console.log('Initializing enhanced ECO classifier...');
-      
+
       // Initialize Polyglot book
       this.polyglotBook = getPolyglotBook();
       await this.polyglotBook.initialize();
-      
+
       // Check chess_openings table
       const { count: openingsCount, error: openingsError } = await supabase
         .from('chess_openings')
         .select('*', { count: 'exact', head: true });
-      
+
       if (openingsError) {
         throw new Error(`Chess openings database connection failed: ${openingsError.message}`);
       }
-      
+
       const bookStats = this.polyglotBook.getStatistics();
       console.log(`✅ Enhanced ECO classifier ready with ${bookStats.positions} book positions + ${openingsCount} chess openings`);
       this.isLoaded = true;
-      
+
     } catch (error) {
       console.error('Failed to initialize ECO classifier:', error.message);
       throw error;
@@ -68,7 +68,7 @@ class ECOClassifier {
 
       // Use dual approach: Polyglot for book depth + chess_openings for naming
       const result = await this.classifyWithPolyglot(moveArray);
-      
+
       if (result && result.name) {
         console.log(`Opening found: ${result.name} (${result.eco || 'no ECO'}) - book until move ${result.lastBookMove}`);
         return result;
@@ -91,36 +91,36 @@ class ECOClassifier {
     let bestOpeningData = null;
     let lastBookMove = 0;
     const game = new Chess();
-    
+
     console.log('Starting classification with Polyglot book...');
-    
+
     // Track book moves using Polyglot
     // Note: The book typically only contains positions where White is to move
     let stillInBook = true;
-    
+
     for (let i = 0; i < Math.min(moveArray.length, 60); i++) {
       try {
         const move = moveArray[i];
         const currentFen = game.fen();
         const isWhiteTurn = game.turn() === 'w';
-        
+
         // Check if this position is in the Polyglot book
         // Only check when it's White's turn (book limitation)
         let bookMoves = [];
         if (isWhiteTurn) {
           bookMoves = await this.polyglotBook.getBookMoves(currentFen);
         }
-        
+
         // Make the move
         game.move(move);
-        
+
         // Track book depth
         if (stillInBook && isWhiteTurn) {
           if (bookMoves.length > 0) {
             // Check if the played move was a book move
             const playedUci = this.moveToUci(move);
             const isBookMove = bookMoves.some(m => m.uci === playedUci);
-            
+
             if (isBookMove) {
               // Update lastBookMove (full move number)
               lastBookMove = Math.floor(i / 2) + 1;
@@ -133,38 +133,38 @@ class ECOClassifier {
             stillInBook = false;
           }
         }
-        
+
       } catch (moveError) {
         console.warn(`Error processing move ${i + 1}:`, moveError.message);
         break;
       }
     }
-    
+
     // Now find the best opening name using chess_openings table
     // Try two approaches: position-based and move-order based
-    
+
     // Reset game for position lookups
     game.reset();
     const uciMoves = [];
-    
+
     for (let i = 0; i < moveArray.length; i++) {
       const move = moveArray[i];
       game.move(move);
       uciMoves.push(this.moveToUci(move));
-      
+
       const fen = game.fen();
       const epd = this.fenToEpd(fen);
-      
+
       // Look up position in chess_openings
       const openingResult = await this.queryChessOpeningsPosition(epd);
-      
+
       if (openingResult && openingResult.eco) {
         bestOpeningName = openingResult.name;
         bestOpeningEco = openingResult.eco;
         bestOpeningData = openingResult;
       }
     }
-    
+
     // If no position match, try prefix-based lookup
     if (!bestOpeningName && uciMoves.length > 0) {
       const prefixResult = await this.queryByPrefix(uciMoves);
@@ -174,9 +174,9 @@ class ECOClassifier {
         bestOpeningData = prefixResult;
       }
     }
-    
+
     if (!bestOpeningName) return null;
-    
+
     return {
       eco: bestOpeningEco,
       name: bestOpeningName,
@@ -205,7 +205,7 @@ class ECOClassifier {
     try {
       const uciString = uciMoves.join(' ');
       const prefixHash = crypto.createHash('sha256').update(uciString).digest('hex');
-      
+
       const { data, error } = await supabase
         .from('openings_prefix')
         .select('line_id, prefix_plies')
@@ -213,16 +213,16 @@ class ECOClassifier {
         .order('prefix_plies', { ascending: false })
         .limit(1)
         .single();
-      
+
       if (error || !data) return null;
-      
+
       // Get the full opening details
       const { data: opening, error: openingError } = await supabase
         .from('chess_openings')
         .select('*')
         .eq('id', data.line_id)
         .single();
-      
+
       return openingError ? null : opening;
     } catch (error) {
       console.warn('Error querying by prefix:', error.message);
@@ -238,18 +238,18 @@ class ECOClassifier {
     if (this.openingsCache.has(epd)) {
       return this.openingsCache.get(epd);
     }
-    
+
     try {
       const { data: opening, error } = await supabase
         .from('chess_openings')
         .select('*')
         .eq('epd', epd)
         .single();
-      
+
       const result = (opening && !error && opening.eco) ? opening : null;
       this.openingsCache.set(epd, result);
       return result;
-    } catch (error) {
+    } catch (_error) {
       this.openingsCache.set(epd, null);
       return null;
     }
@@ -276,7 +276,7 @@ class ECOClassifier {
         .select('eco, name, pgn')
         .or(`name.ilike.%${query}%,eco.ilike.%${query}%`)
         .limit(20);
-      
+
       return error ? [] : openings;
     } catch (error) {
       console.warn('Error searching openings:', error.message);
@@ -292,7 +292,7 @@ class ECOClassifier {
       const { count, error: countError } = await supabase
         .from('chess_openings')
         .select('*', { count: 'exact', head: true });
-      
+
       if (countError) {
         return { total: 0, byCategory: {} };
       }
@@ -313,7 +313,7 @@ class ECOClassifier {
       }, {});
 
       return { total: count, byCategory: byCategory };
-    } catch (error) {
+    } catch (_error) {
       return { total: 0, byCategory: {} };
     }
   }
@@ -356,15 +356,15 @@ async function initializeECOClassifier() {
 }
 
 async function classifyOpening(moves) {
-  return await ecoClassifier.classify(moves);
+  return ecoClassifier.classify(moves);
 }
 
 async function getECOStatistics() {
-  return await ecoClassifier.getStatistics();
+  return ecoClassifier.getStatistics();
 }
 
 async function searchOpenings(query) {
-  return await ecoClassifier.search(query);
+  return ecoClassifier.search(query);
 }
 
 module.exports = {

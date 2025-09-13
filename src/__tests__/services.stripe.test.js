@@ -43,17 +43,17 @@ describe('Stripe Service', () => {
     process.env = { ...originalEnv };
     process.env.STRIPE_SECRET_KEY = 'sk_test_mock_key';
     process.env.FRONTEND_URL = 'https://test-frontend.com';
-    
+
     // Clear the module cache to ensure stripe service re-initializes with the mock key
     jest.resetModules();
 
     // Reset all mocks
     jest.clearAllMocks();
-    
+
     // Re-setup mockSupabase from the mock
     const { supabase } = require('../services/supabase');
     mockSupabase = supabase;
-    
+
     // Reset the mock implementation to the default
     mockSupabase.from.mockImplementation(() => ({
       update: jest.fn(() => ({
@@ -199,7 +199,7 @@ describe('Stripe Service', () => {
 
     test('should use environment URLs for success and cancel redirects', async () => {
       process.env.FRONTEND_URL = 'https://custom-domain.com';
-      
+
       const mockSession = { id: 'cs_test', url: 'https://checkout.stripe.com/pay/cs_test' };
       mockStripeInstance.checkout.sessions.create.mockResolvedValue(mockSession);
 
@@ -237,7 +237,7 @@ describe('Stripe Service', () => {
       };
 
       mockStripeInstance.checkout.sessions.retrieve.mockResolvedValue(mockSession);
-      
+
       // Mock both user_profiles and usage_logs calls
       mockSupabase.from.mockImplementation((table) => {
         if (table === 'user_profiles') {
@@ -357,7 +357,7 @@ describe('Stripe Service', () => {
       };
 
       mockStripeInstance.checkout.sessions.retrieve.mockResolvedValue(mockSession);
-      
+
       // Ensure both database calls work
       mockSupabase.from.mockImplementation((table) => {
         if (table === 'user_profiles') {
@@ -506,7 +506,7 @@ describe('Stripe Service', () => {
   describe('Error Handling and Edge Cases', () => {
     test('should handle missing STRIPE_SECRET_KEY', () => {
       delete process.env.STRIPE_SECRET_KEY;
-      
+
       // Stripe constructor should be called with undefined
       expect(() => {
         jest.resetModules();
@@ -516,7 +516,7 @@ describe('Stripe Service', () => {
 
     test('should handle missing FRONTEND_URL', () => {
       delete process.env.FRONTEND_URL;
-      
+
       const mockSession = { id: 'cs_test', url: 'https://checkout.stripe.com/pay/cs_test' };
       mockStripeInstance.checkout.sessions.create.mockResolvedValue(mockSession);
 
@@ -546,7 +546,7 @@ describe('Stripe Service', () => {
       };
 
       mockStripeInstance.checkout.sessions.retrieve.mockResolvedValue(mockSession);
-      
+
       // Mock database operations
       mockSupabase.from.mockImplementation((table) => {
         if (table === 'user_profiles') {
@@ -597,7 +597,7 @@ describe('Stripe Service', () => {
       mockStripeInstance.checkout.sessions.create.mockResolvedValue(mockSession);
 
       const { createCheckoutSession } = require('../services/stripe');
-      
+
       // Test with annual billing (ensure proper rounding)
       await createCheckoutSession('user_123', 'test@example.com', 'annual');
 
@@ -664,7 +664,7 @@ describe('Stripe Service', () => {
       });
 
       const { handleSuccessfulPayment } = require('../services/stripe');
-      
+
       // Should not throw even if logging fails
       const result = await handleSuccessfulPayment('cs_test_session');
       expect(result.success).toBe(true);
@@ -716,13 +716,13 @@ describe('Stripe Service', () => {
       mockStripeInstance.checkout.sessions.create.mockResolvedValue(mockSession);
 
       const { createCheckoutSession } = require('../services/stripe');
-      
+
       // The prices are hardcoded, but this ensures Math.round is working
       await createCheckoutSession('user_123', 'test@example.com', 'monthly');
 
       const call = mockStripeInstance.checkout.sessions.create.mock.calls[0][0];
       const unitAmount = call.line_items[0].price_data.unit_amount;
-      
+
       expect(Number.isInteger(unitAmount)).toBe(true);
       expect(unitAmount).toBeGreaterThan(0);
     });

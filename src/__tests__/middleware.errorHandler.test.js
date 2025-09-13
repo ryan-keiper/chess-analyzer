@@ -10,10 +10,10 @@ describe('Error Handler Middleware', () => {
       json: jest.fn(() => res)
     };
     next = jest.fn();
-    
+
     // Reset environment
     delete process.env.NODE_ENV;
-    
+
     // Mock console.error to avoid noise in tests
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -25,9 +25,9 @@ describe('Error Handler Middleware', () => {
   describe('Basic Error Handling', () => {
     test('should handle generic server errors with 500 status', () => {
       const error = new Error('Something went wrong');
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -37,9 +37,9 @@ describe('Error Handler Middleware', () => {
 
     test('should not call next() as it handles the error', () => {
       const error = new Error('Test error');
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(next).not.toHaveBeenCalled();
     });
   });
@@ -48,9 +48,9 @@ describe('Error Handler Middleware', () => {
     test('should handle ValidationError with 400 status', () => {
       const error = new Error('Field validation failed');
       error.name = 'ValidationError';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Validation failed'
@@ -66,7 +66,7 @@ describe('Error Handler Middleware', () => {
       validationErrors.forEach(error => {
         jest.clearAllMocks();
         errorHandler(error, req, res, next);
-        
+
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({
           error: 'Validation failed'
@@ -78,9 +78,9 @@ describe('Error Handler Middleware', () => {
   describe('Chess.js Errors', () => {
     test('should handle Invalid PGN errors with 400 status', () => {
       const error = new Error('Invalid PGN format detected');
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Invalid chess game format'
@@ -97,9 +97,9 @@ describe('Error Handler Middleware', () => {
       pgnErrors.forEach(errorMessage => {
         jest.clearAllMocks();
         const error = new Error(errorMessage);
-        
+
         errorHandler(error, req, res, next);
-        
+
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({
           error: 'Invalid chess game format'
@@ -109,9 +109,9 @@ describe('Error Handler Middleware', () => {
 
     test('should be case sensitive for PGN error detection', () => {
       const error = new Error('invalid pgn format'); // lowercase
-      
+
       errorHandler(error, req, res, next);
-      
+
       // Should not match, fallback to generic error
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
@@ -123,9 +123,9 @@ describe('Error Handler Middleware', () => {
   describe('Stockfish Engine Errors', () => {
     test('should handle Stockfish errors with 503 status', () => {
       const error = new Error('Stockfish engine crashed');
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(503);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Chess engine temporarily unavailable'
@@ -143,9 +143,9 @@ describe('Error Handler Middleware', () => {
       stockfishErrors.forEach(errorMessage => {
         jest.clearAllMocks();
         const error = new Error(errorMessage);
-        
+
         errorHandler(error, req, res, next);
-        
+
         expect(res.status).toHaveBeenCalledWith(503);
         expect(res.json).toHaveBeenCalledWith({
           error: 'Chess engine temporarily unavailable'
@@ -158,9 +158,9 @@ describe('Error Handler Middleware', () => {
     test('should handle rate limiting errors with 429 status', () => {
       const error = new Error('Too many requests');
       error.status = 429;
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(429);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Too many requests'
@@ -170,9 +170,9 @@ describe('Error Handler Middleware', () => {
     test('should prioritize status property over message content', () => {
       const error = new Error('Invalid PGN format'); // Would normally be 400
       error.status = 429; // But has rate limit status
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(429);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Too many requests'
@@ -183,12 +183,12 @@ describe('Error Handler Middleware', () => {
   describe('Development vs Production Behavior', () => {
     test('should include stack trace and details in development', () => {
       process.env.NODE_ENV = 'development';
-      
+
       const error = new Error('Test error');
       error.stack = 'Error: Test error\n    at test.js:1:1';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error',
         stack: error.stack,
@@ -198,12 +198,12 @@ describe('Error Handler Middleware', () => {
 
     test('should not include stack trace in production', () => {
       process.env.NODE_ENV = 'production';
-      
+
       const error = new Error('Test error');
       error.stack = 'Error: Test error\n    at test.js:1:1';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
       });
@@ -213,9 +213,9 @@ describe('Error Handler Middleware', () => {
       // NODE_ENV undefined (default case)
       const error = new Error('Test error');
       error.stack = 'Error: Test error\n    at test.js:1:1';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
       });
@@ -223,11 +223,11 @@ describe('Error Handler Middleware', () => {
 
     test('should include debug info in test environment', () => {
       process.env.NODE_ENV = 'test';
-      
+
       const error = new Error('Test error');
-      
+
       errorHandler(error, req, res, next);
-      
+
       // Should not include debug info in test (only development)
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -240,9 +240,9 @@ describe('Error Handler Middleware', () => {
       const error = new Error('Invalid PGN with Stockfish error');
       error.status = 429;
       error.name = 'ValidationError';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(429);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Too many requests'
@@ -252,9 +252,9 @@ describe('Error Handler Middleware', () => {
     test('should prioritize validation errors over content-based errors', () => {
       const error = new Error('Invalid PGN format');
       error.name = 'ValidationError';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Validation failed'
@@ -263,9 +263,9 @@ describe('Error Handler Middleware', () => {
 
     test('should handle multiple error indicators in message', () => {
       const error = new Error('Invalid PGN caused Stockfish to crash');
-      
+
       errorHandler(error, req, res, next);
-      
+
       // Should match the first pattern (Invalid PGN)
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
@@ -277,9 +277,9 @@ describe('Error Handler Middleware', () => {
   describe('Edge Cases', () => {
     test('should handle errors without message property', () => {
       const error = {};
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -288,9 +288,9 @@ describe('Error Handler Middleware', () => {
 
     test('should handle null error', () => {
       const error = null;
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -299,9 +299,9 @@ describe('Error Handler Middleware', () => {
 
     test('should handle undefined error', () => {
       const error = undefined;
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -310,9 +310,9 @@ describe('Error Handler Middleware', () => {
 
     test('should handle errors with empty message', () => {
       const error = new Error('');
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -321,9 +321,9 @@ describe('Error Handler Middleware', () => {
 
     test('should handle errors with null message', () => {
       const error = { message: null };
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -335,9 +335,9 @@ describe('Error Handler Middleware', () => {
         customProperty: 'value',
         toString: () => 'Custom error'
       };
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -350,7 +350,7 @@ describe('Error Handler Middleware', () => {
       const brokenRes = {
         json: jest.fn()
       };
-      
+
       expect(() => {
         errorHandler(new Error('test'), req, brokenRes, next);
       }).toThrow();
@@ -360,7 +360,7 @@ describe('Error Handler Middleware', () => {
       const brokenRes = {
         status: jest.fn(() => brokenRes)
       };
-      
+
       expect(() => {
         errorHandler(new Error('test'), req, brokenRes, next);
       }).toThrow();
@@ -368,9 +368,9 @@ describe('Error Handler Middleware', () => {
 
     test('should handle method chaining correctly', () => {
       const error = new Error('Test error');
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.status().json).toEqual(res.json);
     });
@@ -379,9 +379,9 @@ describe('Error Handler Middleware', () => {
   describe('Console Logging', () => {
     test('should log all errors to console', () => {
       const error = new Error('Test error for logging');
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(console.error).toHaveBeenCalledWith('Error:', error);
     });
 
@@ -392,10 +392,10 @@ describe('Error Handler Middleware', () => {
         { error: Object.assign(new Error('Rate limited'), { status: 429 }), type: 'Rate limit' }
       ];
 
-      errors.forEach(({ error, type }) => {
+      errors.forEach(({ error, _type }) => {
         jest.clearAllMocks();
         errorHandler(error, req, res, next);
-        
+
         expect(console.error).toHaveBeenCalledWith('Error:', error);
       });
     });
@@ -405,9 +405,9 @@ describe('Error Handler Middleware', () => {
     test('should handle axios network errors', () => {
       const error = new Error('Network Error');
       error.code = 'ECONNREFUSED';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -417,9 +417,9 @@ describe('Error Handler Middleware', () => {
     test('should handle database connection errors', () => {
       const error = new Error('Connection to database failed');
       error.name = 'ConnectionError';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -429,9 +429,9 @@ describe('Error Handler Middleware', () => {
     test('should handle timeout errors', () => {
       const error = new Error('Request timeout');
       error.code = 'ETIMEDOUT';
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'
@@ -440,9 +440,9 @@ describe('Error Handler Middleware', () => {
 
     test('should handle JSON parsing errors', () => {
       const error = new SyntaxError('Unexpected token in JSON');
-      
+
       errorHandler(error, req, res, next);
-      
+
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Internal server error'

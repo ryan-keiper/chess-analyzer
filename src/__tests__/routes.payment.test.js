@@ -101,7 +101,7 @@ describe('Payment Routes', () => {
         .send(annualRequest)
         .expect(200);
 
-      expect(response.body.url).toBe('https://checkout.stripe.com/test_session');
+      expect(response.body.url).toBe('https://checkout.stripe.com/pay/cs_test_session_id');
       expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
         'user_123',
         'test@example.com',

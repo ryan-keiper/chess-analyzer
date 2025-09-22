@@ -56,16 +56,7 @@ jobs:
         # Note: Add actual threshold checking when coverage data is available
       continue-on-error: true
     
-    - name: Upload coverage to Codecov
-      if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./coverage/lcov.info
-        flags: backend
-        name: backend-coverage
-        token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: false
-      continue-on-error: true
+    # Codecov upload removed - not configured for this project
 
   frontend-coverage:
     name: Frontend Test Coverage
@@ -93,14 +84,7 @@ jobs:
         echo "TODO: Add React Testing Library tests"
       continue-on-error: true
     
-    - name: Upload coverage to Codecov
-      if: success()
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./chess-analyzer-frontend/coverage/lcov.info
-        flags: frontend
-        name: frontend-coverage
-      continue-on-error: true
+    # Codecov upload removed - not configured for this project
 
   coverage-summary:
     name: Coverage Summary

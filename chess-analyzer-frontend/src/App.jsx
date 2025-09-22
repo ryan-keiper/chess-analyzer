@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthProvider } from './contexts/AuthContextProvider';
 import ProtectedRoute from './components/ProtectedRoute';
-import Dashboard from './components/Dashboard';
-import PricingPage from './components/PricingPage';
-import PaymentPage from './components/PaymentPage';
-import PaymentSuccessPage from './components/PaymentSuccessPage';
+import LoadingSpinner from './components/LoadingSpinner';
+
+// Lazy load pages - each becomes a separate chunk
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const PricingPage = lazy(() => import('./components/PricingPage'));
+const PaymentPage = lazy(() => import('./components/PaymentPage'));
+const PaymentSuccessPage = lazy(() => import('./components/PaymentSuccessPage'));
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard'); // dashboard, pricing, payment, payment-success
@@ -71,7 +74,9 @@ function App() {
   return (
     <AuthProvider>
       <ProtectedRoute>
-        {renderCurrentPage()}
+        <Suspense fallback={<LoadingSpinner />}>
+          {renderCurrentPage()}
+        </Suspense>
       </ProtectedRoute>
     </AuthProvider>
   );

@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src"
+    "lint": "eslint \"src/**/*.{js,jsx}\""
   },
   "dependencies": {
     "@stripe/stripe-js": "^7.8.0",

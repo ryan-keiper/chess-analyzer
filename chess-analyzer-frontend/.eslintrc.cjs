@@ -1,5 +1,5 @@
 module.exports = {
-  root: true,
+  root: true, // This stops ESLint from looking in parent directories
   env: { browser: true, es2020: true },
   extends: [
     'eslint:recommended',

@@ -377,18 +377,18 @@ This move takes the game beyond established opening theory. Advanced positional 
 
   return (
     <div className="max-w-full mx-auto h-[calc(100vh-12rem)] px-4">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
-        
+      <div className="flex gap-3 h-full">
+
         {/* Heuristics Panel - Left side */}
-        <div className="hidden lg:block lg:col-span-1 h-full">
+        <div className="hidden lg:block flex-shrink-0 w-1/4 h-full">
           <div className="h-full flex flex-col max-h-full overflow-hidden">
             <HeuristicsPanel heuristics={currentHeuristics} />
           </div>
         </div>
-        
-        {/* Chess Board - Takes up 2 columns on large screens */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
+
+        {/* Chess Board - Center with min-width, flex-grow to take available space */}
+        <div className="flex-grow flex-shrink min-w-[800px] max-w-[900px]">
+          <div className="bg-white rounded-lg shadow-sm border p-4 h-full flex flex-col">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               {gameState.isAnalyzed && gameState.analysis?.gameInfo?.opening && gameState.analysis?.gameInfo?.eco
                 ? `${gameState.analysis.gameInfo.eco} - ${gameState.analysis.gameInfo.opening}`
@@ -403,9 +403,9 @@ This move takes the game beyond established opening theory. Advanced positional 
                 <Chessboard
                   position={boardPosition}
                   boardOrientation={boardOrientation}
-                  boardWidth={typeof window !== 'undefined' 
-                    ? Math.min(500, window.innerWidth * 0.35, window.innerHeight * 0.6)
-                    : 500
+                  boardWidth={typeof window !== 'undefined'
+                    ? Math.min(520, window.innerWidth * 0.36, window.innerHeight * 0.65)
+                    : 520
                   }
                   arePiecesDraggable={false} // Disable dragging - this is for analysis only
                   customBoardStyle={{
@@ -418,9 +418,9 @@ This move takes the game beyond established opening theory. Advanced positional 
               {/* Eval Bar - matches board height */}
               {gameState.isAnalyzed && (
                 <div className="flex-shrink-0" style={{
-                  height: typeof window !== 'undefined' 
-                    ? Math.min(500, window.innerWidth * 0.35, window.innerHeight * 0.6)
-                    : 500
+                  height: typeof window !== 'undefined'
+                    ? Math.min(520, window.innerWidth * 0.36, window.innerHeight * 0.65)
+                    : 520
                 }}>
                   <EvalBar 
                     currentEval={currentEval}
@@ -432,15 +432,15 @@ This move takes the game beyond established opening theory. Advanced positional 
               )}
               
               {/* Move List - right-justified and matches board height */}
-              <div className="w-full md:w-48 lg:w-52 md:ml-auto flex-shrink-0">
+              <div className="w-full md:w-44 lg:w-48 md:ml-auto flex-shrink-0">
                 <MoveList
                   moves={gameState.moves}
                   currentMoveIndex={gameState.currentMoveIndex}
                   onMoveClick={goToMove}
                   isAnalyzed={gameState.isAnalyzed}
-                  boardHeight={typeof window !== 'undefined' 
-                    ? Math.min(500, window.innerWidth * 0.35, window.innerHeight * 0.6)
-                    : 500
+                  boardHeight={typeof window !== 'undefined'
+                    ? Math.min(520, window.innerWidth * 0.36, window.innerHeight * 0.65)
+                    : 520
                   }
                   keyMoments={gameState.analysis?.keyMoments || []}
                 />
@@ -464,7 +464,7 @@ This move takes the game beyond established opening theory. Advanced positional 
         </div>
 
         {/* Right Side - Analysis Panel */}
-        <div className="lg:col-span-1 h-full">
+        <div className="hidden lg:block flex-shrink-0 w-1/4 h-full">
           <div className="space-y-4 h-full flex flex-col max-h-full overflow-hidden">
             
             {/* PGN Input Section */}

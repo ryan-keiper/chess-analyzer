@@ -18,14 +18,14 @@ const MoveList = ({ moves, currentMoveIndex, onMoveClick, isAnalyzed, boardHeigh
   }, [currentMoveIndex]);
   if (!isAnalyzed || !moves || moves.length === 0) {
     return (
-      <div 
-        className="bg-gray-50 rounded-lg p-3 overflow-y-auto border"
+      <div
+        className="bg-gray-50 rounded-lg p-2 overflow-y-auto border"
         style={{ height: `${boardHeight}px` }}
       >
-        <div className="text-xs font-medium text-gray-700 mb-3 flex items-center border-b border-gray-200 pb-2">
+        <div className="text-xs font-medium text-gray-700 mb-2 flex items-center border-b border-gray-200 pb-1">
           <ChevronRight className="w-3 h-3 mr-1" />
-          Game Moves
-          <span className="ml-auto text-gray-500">Click to navigate</span>
+          Moves
+          <span className="ml-auto text-gray-500 text-xs">Navigate</span>
         </div>
         <div className="flex items-center justify-center text-gray-400 text-sm h-32">
           Moves will appear here after analysis
@@ -62,32 +62,32 @@ const MoveList = ({ moves, currentMoveIndex, onMoveClick, isAnalyzed, boardHeigh
 
 
   return (
-    <div 
-      ref={scrollContainerRef} 
-      className="bg-gray-50 rounded-lg p-3 overflow-y-auto border"
+    <div
+      ref={scrollContainerRef}
+      className="bg-gray-50 rounded-lg p-2 overflow-y-auto border"
       style={{ height: `${boardHeight}px` }}
     >
-      <div className="text-xs font-medium text-gray-700 mb-3 flex items-center border-b border-gray-200 pb-2">
+      <div className="text-xs font-medium text-gray-700 mb-2 flex items-center border-b border-gray-200 pb-1">
         <ChevronRight className="w-3 h-3 mr-1" />
-        Game Moves
-        <span className="ml-auto text-gray-500">Click to navigate</span>
+        Moves
+        <span className="ml-auto text-gray-500 text-xs">Navigate</span>
       </div>
       
-      <div className="space-y-0.5 text-sm">
+      <div className="space-y-0 text-xs">
         {movePairs.map((pair) => (
           <div key={pair.moveNumber} className="flex items-center">
             {/* Move number */}
-            <div className="w-7 text-gray-500 text-right mr-3 font-mono text-xs">
+            <div className="w-6 text-gray-500 text-right mr-2 font-mono text-xs">
               {pair.moveNumber}.
             </div>
             
             {/* White move */}
-            <div className="flex-1 mr-1">
+            <div className="flex-1 mr-0.5">
               {pair.white && (
                 <button
                   data-move-index={pair.white.index}
                   onClick={() => handleMoveClick(pair.white.index)}
-                  className={`px-2 py-1.5 rounded text-left font-mono hover:bg-blue-100 transition-all duration-150 w-full text-sm focus:outline-none relative ${
+                  className={`px-1.5 py-1 rounded text-left font-mono hover:bg-blue-100 transition-all duration-150 w-full text-xs focus:outline-none relative ${
                     currentMoveIndex === pair.white.index
                       ? 'bg-blue-500 text-white shadow-sm'
                       : isKeyMoment(pair.white.index)
@@ -111,7 +111,7 @@ const MoveList = ({ moves, currentMoveIndex, onMoveClick, isAnalyzed, boardHeigh
                 <button
                   data-move-index={pair.black.index}
                   onClick={() => handleMoveClick(pair.black.index)}
-                  className={`px-2 py-1.5 rounded text-left font-mono hover:bg-blue-100 transition-all duration-150 w-full text-sm focus:outline-none relative ${
+                  className={`px-1.5 py-1 rounded text-left font-mono hover:bg-blue-100 transition-all duration-150 w-full text-xs focus:outline-none relative ${
                     currentMoveIndex === pair.black.index
                       ? 'bg-blue-500 text-white shadow-sm'
                       : isKeyMoment(pair.black.index)

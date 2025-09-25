@@ -187,10 +187,7 @@ jobs:
           echo "dockerfile_exists=false" >> $GITHUB_OUTPUT
         fi
     
-    - name: Set up Docker Buildx
-      if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
-      uses: docker/setup-buildx-action@v3
-    
+    # Skip Buildx to avoid Docker Hub rate limits - use standard docker build
     - name: Build Docker image
       if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
       run: |

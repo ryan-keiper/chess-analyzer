@@ -1,23 +1,42 @@
 # Chess Analyzer
 
-An AI-powered chess analysis SaaS application that provides human-language explanations of chess games.
+Chess Analyzer is an AI-powered SaaS that helps players understand their games in a way existing tools don’t.  
+Instead of just showing which moves were good or bad, it explains *why* — surfacing the strategic ideas and plans behind each decision, much like a coach would.
+
+I also built Chess Analyzer as a full-stack solo project to demonstrate AI-native software engineering.  
+It shows how I can take a complex idea from whiteboard to live SaaS fast, combining modern tooling, clean architecture, and AI-assisted workflows.
+
+---
+
+## Demo
+
+🎥 [Watch the Loom Walkthrough](https://www.loom.com/share/c828c0328442406d821f57dd4a5a7302)
+📂 [View the Code on GitHub](https://github.com/ryan-keiper/chess-analyzer)
+
+---
+
+## Current Status
+
+- ✅ Opening book + Stockfish integration fully working  
+- ✅ Key move detection live  
+- 🚧 LLM narrative analysis scaffolded (placeholders currently shown in UI)  
+- ✅ Full-stack architecture in place: React + Vite + Tailwind, Node + Express, Supabase/Postgres, Stripe, Dockerized Stockfish  
+
+---
 
 ## Features
 
-- 🧠 **Hybrid Analysis**: Polyglot opening book (124M+ positions) + AI strategic analysis
-- ⚡ **Fast Performance**: <3 second analysis time with 76,000+ lookups/second
-- 📚 **Professional Theory**: Complete opening coverage from 3.3M+ high-level games
-- 🎯 **Smart Boundaries**: Auto-detect when players leave established theory
-- 📊 **Detailed Insights**: Move-by-move analysis with opening theory and strategic evaluation
+### For Players
+- Human-readable, coach-style insights (*coming soon*)  
+- Instant recognition of 124M+ opening book positions  
+- Move-by-move centipawn evaluations and key moment detection  
 
-## Tech Stack
-
-- **Frontend**: React + Vite + Tailwind CSS
-- **Backend**: Node.js + Express + Supabase (PostgreSQL)
-- **Chess Engine**: Stockfish integration
-- **Payment**: Stripe
-- **Auth**: Supabase Auth
-- **AI**: LLM integration for strategic analysis
+### For Techies
+- **Frontend**: React + Vite + Tailwind  
+- **Backend**: Node.js + Express + Supabase (Postgres)  
+- **Engine**: Stockfish in Docker  
+- **Payments**: Stripe integration  
+- **Auth**: Supabase Auth  
 
 ## Project Structure
 
@@ -209,22 +228,6 @@ The application uses Supabase (PostgreSQL) with the following key tables:
 
 ### Required Environment Variables
 Ensure all environment variables from the examples above are configured in your deployment environment.
-
-## Performance Metrics
-
-### Before Polyglot Integration
-- ⏱️ **15+ seconds** analysis time
-- 🌐 **15-20 API calls** per game to external services
-- ⚠️ **Rate limiting** issues
-- 📊 **Multiple API dependencies** for opening moves
-
-### After Polyglot Integration  
-- ⚡ **<3 seconds** analysis time
-- 🚫 **Zero API calls** for opening detection
-- ✅ **No rate limiting** - all lookups are local
-- 🔧 **Optimized LLM usage** for strategic analysis only
-- 📚 **Complete opening coverage** from 124M+ positions
-- 🎯 **Accurate book depth** tracking
 
 ## Contributing
 

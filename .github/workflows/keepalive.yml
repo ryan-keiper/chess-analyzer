@@ -38,7 +38,7 @@ jobs:
         const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          console.error('L Missing Supabase credentials');
+          console.error('ERROR: Missing Supabase credentials');
           process.exit(1);
         }
 
@@ -46,7 +46,7 @@ jobs:
 
         (async () => {
           try {
-            console.log('<Ó Pinging Supabase database...');
+            console.log('Pinging Supabase database...');
 
             // Simple SELECT query to maintain activity
             const { data, error } = await supabase
@@ -55,15 +55,15 @@ jobs:
               .limit(1);
 
             if (error) {
-              console.error('L Database query failed:', error.message);
+              console.error('ERROR: Database query failed:', error.message);
               process.exit(1);
             }
 
-            console.log(' Successfully pinged Supabase database');
-            console.log('=Ê Database is active and responsive');
+            console.log('SUCCESS: Pinged Supabase database');
+            console.log('Database is active and responsive');
             process.exit(0);
           } catch (err) {
-            console.error('L Unexpected error:', err.message);
+            console.error('ERROR: Unexpected error:', err.message);
             process.exit(1);
           }
         })();

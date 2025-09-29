@@ -1,0 +1,76 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    # Run every 6 days at 3:00 AM UTC (well within the 7-day activity threshold)
+    - cron: '0 3 */6 * *'
+  workflow_dispatch:  # Allows manual triggering from GitHub Actions UI
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  ping-database:
+    name: Ping Supabase Database
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install Supabase client
+      run: npm install @supabase/supabase-js
+
+    - name: Ping Supabase database
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: |
+        node -e "
+        const { createClient } = require('@supabase/supabase-js');
+
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseKey) {
+          console.error('L Missing Supabase credentials');
+          process.exit(1);
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        (async () => {
+          try {
+            console.log('<Ó Pinging Supabase database...');
+
+            // Simple SELECT query to maintain activity
+            const { data, error } = await supabase
+              .from('user_profiles')
+              .select('count')
+              .limit(1);
+
+            if (error) {
+              console.error('L Database query failed:', error.message);
+              process.exit(1);
+            }
+
+            console.log(' Successfully pinged Supabase database');
+            console.log('=Ê Database is active and responsive');
+            process.exit(0);
+          } catch (err) {
+            console.error('L Unexpected error:', err.message);
+            process.exit(1);
+          }
+        })();
+        "
+
+    - name: Report status
+      if: always()
+      run: |
+        echo "Keepalive job completed at $(date)"
+        echo "Next scheduled run: 6 days from now"
